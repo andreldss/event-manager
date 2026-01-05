@@ -3,10 +3,11 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { loginAuthDto, registerAuthDto } from './dto/userAuth.dto.js';
 import * as bcrypt from 'bcrypt';
 import { Prisma } from '../../generated/prisma/client.js';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-    constructor(private prismaService: PrismaService) { }
+    constructor(private prismaService: PrismaService, private jwtService: JwtService) { }
 
     async register(data: registerAuthDto) {
 
@@ -69,13 +70,16 @@ export class AuthService {
                 throw new UnauthorizedException('Credenciais inválidas');
             }
 
-            return {
-                id: user.id,
-                name: user.name
-            };
+            const payload = { sub: user.id, name: user.name };
+
+            const token = this.jwtService.sign(payload);
+
+            return { token };
 
         } catch (error) {
+            console.log(error)
             throw new InternalServerErrorException('Erro interno ao registrar usuário.',);
+
         }
     }
 }
