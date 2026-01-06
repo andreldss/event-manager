@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { loginAuthDto, registerAuthDto } from './dto/userAuth.dto.js';
 import * as bcrypt from 'bcrypt';
@@ -70,16 +70,18 @@ export class AuthService {
                 throw new UnauthorizedException('Credenciais inválidas');
             }
 
-            const payload = { sub: user.id, name: user.name };
+            const payload = { sub: user.id, email: user.email };
 
             const token = this.jwtService.sign(payload);
 
             return { token };
 
         } catch (error) {
-            console.log(error)
-            throw new InternalServerErrorException('Erro interno ao registrar usuário.',);
+            if (error instanceof HttpException) {
+                throw error;
+            }
 
+            throw new InternalServerErrorException('Erro interno ao fazer login.');
         }
     }
 }
