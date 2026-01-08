@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
 
-export default function LoginForm() {
+export default function RegisterForm() {
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('')
     const router = useRouter()
@@ -19,10 +21,10 @@ export default function LoginForm() {
         setError('');
 
         try {
-            const response = await apiFetch('/auth/login', 'POST', { email, password });
-            router.push('/dashboard');
+            const response = await apiFetch('/auth/register', 'POST', { email, password, confirmPassword, name });
+            router.push('/login');
         } catch (err) {
-            setError('Falha no login. Verifique suas credenciais.');
+            setError('Falha no registro. Verifique suas credenciais.');
         } finally {
             setLoading(false);
         }
@@ -31,6 +33,17 @@ export default function LoginForm() {
     return (
         <div>
             <form onSubmit={handleSubmit}>
+                <label className='block mb-4'>
+                    <span className='text-sm text-gray-600'>Nome</span>
+                    <input
+                        type='text'
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        className='mt-1 w-full px-4 py-2 border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:background-400'
+                    />
+                </label>
+
                 <label className='block mb-4'>
                     <span className='text-sm text-gray-600'>E-mail</span>
                     <input
@@ -53,6 +66,17 @@ export default function LoginForm() {
                     />
                 </label>
 
+                <label className='block mb-6'>
+                    <span className='text-sm text-gray-600'>Confirme sua senha</span>
+                    <input
+                        type='password'
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        className='mt-1 w-full px-4 py-2 border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:background-400'
+                    />
+                </label>
+
                 <div className='flex items-center justify-center mb-4'>
                     {error && <p className='text-red-500 text-l font-bold mb-2'>{error}</p>}
                 </div>
@@ -62,9 +86,8 @@ export default function LoginForm() {
                 </button>
 
                 <div className='flex items-center justify-center mt-4'>
-                    <Link href="/register">Não tem uma conta? Registre-se aqui</Link>
+                    <Link href="/login">Já tem uma conta? Faça login aqui</Link>
                 </div>
-                
             </form>
         </div>
     );
