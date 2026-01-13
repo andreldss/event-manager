@@ -1,6 +1,6 @@
 export default function Login() {
     return (
-        <div className="">
+        <div className="bg-white p-8">
 
         </div>
     )
