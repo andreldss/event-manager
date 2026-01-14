@@ -2,20 +2,21 @@
 import { Cog, LayoutDashboard, PartyPopper } from "lucide-react";
 import SidebarItem from "./side-bar-item";
 import Sidebar from "./side-bar";
-import { usePathname } from "next/navigation";
 
 export default function Dashboard({ children }: { children: React.ReactNode }) {
 
-    const pathname = usePathname();
-
     return (
-        <div className="flex">
+        <div className="flex min-h-screen w-full">
             <Sidebar>
-                <SidebarItem icon={<LayoutDashboard size={20} />} label={"Dashboard"} active={pathname === "/dashboard"} alert={false} />
-                <SidebarItem icon={<PartyPopper size={20} />} label={"Eventos"} active={pathname.startsWith("/dashboard/events")} alert={false} />
-                <SidebarItem icon={<Cog size={20} />} label={"Configurações"} active={pathname.startsWith("/dashboard/configuracoes")} alert={false} />
+                <SidebarItem icon={<LayoutDashboard size={20} />} label={"Dashboard"} href={"/dashboard"} alert={false} />
+                <SidebarItem icon={<PartyPopper size={20} />} label={"Eventos"} href={"/dashboard/events"} alert={false} />
+                <SidebarItem icon={<Cog size={20} />} label={"Configurações"} href={"/dashboard/configuracoes"} alert={false} />
             </Sidebar>
-            <main className="">{children}</main>
+            <main className="flex-1 p-4 pr-8">
+                <div className="bg-white rounded-xl h-full justify-center p-6 shadow-sm">
+                    {children}
+                </div>
+            </main>
         </div>
 
     )
