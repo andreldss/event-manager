@@ -1,4 +1,6 @@
 'use client';
+import { apiFetch } from "@/lib/api";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function NewClient() {
@@ -7,9 +9,27 @@ export default function NewClient() {
     const [clientPhone, setClientPhone] = useState('');
     const [clientNotes, setClientNotes] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('')
+    const router = useRouter()
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await apiFetch('/clients/new', 'POST', { name: clientName, phone: clientPhone, notes: clientNotes });
+            router.push('/dashboard/records/clients');
+        } catch (err) {
+            setError('Falha ao cadastrar cliente. Tente novamente.');
+        } finally {
+            setLoading(false);
+        }
+    }
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[80vh] gap-10">
+        <form onSubmit={handleSubmit} className="flex flex-col items-center justify-center min-h-[80vh] gap-10">
             <h1 className="font-bold text-2xl text-background">Criar Cliente</h1>
 
             <div className="flex gap-10">
@@ -53,6 +73,6 @@ export default function NewClient() {
             <button type='submit' className='py-2 px-4 bg-background hover:opacity-80 active:opacity-100 text-white font-semibold rounded-lg shadow cursor-pointer mb-2'>
                 {loading ? 'Cadastrando...' : 'Cadastrar'}
             </button>
-        </div>
+        </form>
     );
 }
