@@ -72,7 +72,7 @@ export default function ClientsPage() {
                 </div>
             )}
 
-            <div className="w-[900px] max-h-[70vh] p-4 overflow-y-auto rounded-xl shadow-lg">
+            <div className="w-[1200px] max-h-[70vh] p-4 overflow-y-auto rounded-xl shadow-lg">
                 <div className="p-4 flex flex-col gap-3">
                     <div className="px-4 py-3 border rounded-xl flex items-center justify-between">
                         <p className="font-semibold">
@@ -89,15 +89,18 @@ export default function ClientsPage() {
                         </div>
                     ) : (
                         <div className="divide-y">
-                            {filteredClients.map((c) => (
-                                <Link key={String(c.id)} href={`/dashboard/records/clients/${c.id}`} className="block hover:bg-gray-50 transition">
+                            {filteredClients.map((c, index) => (
+                                <Link key={String(c.id)} href={`/dashboard/records/clients/${c.id}`} className={`block transition ${index % 2 === 0 ? "bg-gray-300 hover:bg-gray-200" : "bg-white hover:bg-gray-50"}`}>
                                     <div className="px-4 py-4 flex items-center justify-between">
                                         <div className="flex flex-col">
-                                            <p className="font-semibold text-[16px] text-neutral-900">
-                                                {c.name}
-                                            </p>
+                                            <div className="flex gap-2">
+                                                <p>Cód: {c.id} -</p>
+                                                <p className="font-semibold text-[16px] text-background">
+                                                    {c.name}
+                                                </p>
+                                            </div>
                                             <p className="text-sm text-gray-600">
-                                                {c.phone ? c.phone : "Sem telefone"}
+                                                Fone: {c.phone ? c.phone : "Sem telefone"}
                                             </p>
                                         </div>
                                         <ChevronRight />

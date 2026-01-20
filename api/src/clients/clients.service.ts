@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { CreateClientDto } from './dto/client.dto.js';
+import { CreateClientDto, UpdateClientDto } from './dto/client.dto.js';
 
 @Injectable()
 export class ClientsService {
@@ -27,4 +27,39 @@ export class ClientsService {
             orderBy: { createdAt: "desc" },
         });
     }
+
+    async getOne(id: number) {
+
+        const idNumber = Number(id);
+
+        if (Number.isNaN(idNumber)) {
+            throw new BadRequestException("ID inválido.");
+        }
+
+        const client = await this.prisma.client.findUnique({ where: { id: idNumber } });
+        if (!client) throw new NotFoundException("Cliente não cadastrado.");
+        return client;
+    }
+
+    async getCount() {
+        return this.prisma.client.count()
+    }
+
+    async update(id: number, dto: UpdateClientDto) {
+        const idNumber = Number(id);
+
+        if (Number.isNaN(idNumber)) {
+            throw new BadRequestException("ID inválido.");
+        }
+
+        try {
+            return await this.prisma.client.update({
+                where: { id: idNumber },
+                data: dto,
+            });
+        } catch (error) {
+            throw new NotFoundException("Cliente não encontrado.");
+        }
+    }
+
 }

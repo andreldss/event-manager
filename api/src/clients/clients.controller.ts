@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ClientsService } from './clients.service.js';
-import { CreateClientDto } from './dto/client.dto.js';
+import { CreateClientDto, UpdateClientDto } from './dto/client.dto.js';
 
 @Controller('clients')
 export class ClientsController {
@@ -17,4 +17,18 @@ export class ClientsController {
         return this.clientService.getAll();
     }
 
+    @Get('count')
+    count() {
+        return this.clientService.getCount();
+    }
+
+    @Get(':id')
+    findOne(@Param("id") id: number) {
+        return this.clientService.getOne(id);
+    }
+
+    @Patch(':id')
+    update(@Param("id") id: number, @Body() body: UpdateClientDto) {
+        return this.clientService.update(id, body);
+    }
 }
