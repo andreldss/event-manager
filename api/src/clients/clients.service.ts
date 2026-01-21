@@ -62,4 +62,23 @@ export class ClientsService {
         }
     }
 
+    async delete(id: number) {
+        const idNumber = Number(id);
+
+
+        if (Number.isNaN(idNumber)) {
+            throw new BadRequestException("ID inválido.");
+        }
+
+
+        try {
+            return await this.prisma.client.delete({
+                where: { id: idNumber },
+            });
+        } catch (error) {
+            throw new NotFoundException("Cliente não encontrado.");
+        }
+    }
+
+
 }

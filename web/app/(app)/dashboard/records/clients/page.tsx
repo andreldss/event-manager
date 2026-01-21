@@ -55,7 +55,7 @@ export default function ClientsPage() {
                 </div>
 
                 <div>
-                    <span className="text-sm text-gray-600">Buscar</span>
+                    <span className="text-sm text-background">Buscar</span>
                     <input
                         type="text"
                         value={search}
@@ -78,19 +78,19 @@ export default function ClientsPage() {
                         <p className="font-semibold">
                             {isLoading ? "Carregando..." : `${filteredClients.length} cliente(s)`}
                         </p>
-                        <p className="text-sm text-gray-600">Cadastros recorrentes</p>
+                        <p className="text-sm text-background">Cadastros recorrentes</p>
                     </div>
 
                     {isLoading ? (
-                        <div className="p-6 text-gray-600">Buscando clientes...</div>
+                        <div className="p-6 text-background">Buscando clientes...</div>
                     ) : filteredClients.length === 0 ? (
-                        <div className="p-6 text-gray-600">
+                        <div className="p-6 text-background">
                             Nenhum cliente encontrado.
                         </div>
                     ) : (
                         <div className="divide-y">
                             {filteredClients.map((c, index) => (
-                                <Link key={String(c.id)} href={`/dashboard/records/clients/${c.id}`} className={`block transition ${index % 2 === 0 ? "bg-gray-300 hover:bg-gray-200" : "bg-white hover:bg-gray-50"}`}>
+                                <Link key={String(c.id)} href={`/dashboard/records/clients/${c.id}`} className={`block transition ${index % 2 === 0 ? "bg-gray-300 hover:bg-gray-400" : "bg-white hover:bg-gray-400"}`}>
                                     <div className="px-4 py-4 flex items-center justify-between">
                                         <div className="flex flex-col">
                                             <div className="flex gap-2">
@@ -99,7 +99,7 @@ export default function ClientsPage() {
                                                     {c.name}
                                                 </p>
                                             </div>
-                                            <p className="text-sm text-gray-600">
+                                            <p className="text-sm text-background">
                                                 Fone: {c.phone ? c.phone : "Sem telefone"}
                                             </p>
                                         </div>

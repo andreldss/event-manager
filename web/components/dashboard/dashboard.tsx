@@ -21,11 +21,15 @@ export default function Dashboard({ children }: { children: React.ReactNode }) {
             </Sidebar>
             <main className="flex-1 p-4 pr-8">
                 <div className="bg-white rounded-xl h-full justify-center p-6 shadow-sm">
-                    {showBackButton && (
-                        <button onClick={() => router.back()} className="top-6 left-6text-background hover:opacity-90 transition cursor-pointer">
-                            <ChevronLeft />
-                        </button>
-                    )}
+                    <div className="h-10 flex items-center mb-2">
+                        {showBackButton ? (
+                            <button onClick={() => router.back()} className="text-background hover:opacity-90 transition cursor-pointer">
+                                <ChevronLeft />
+                            </button>
+                        ) : (
+                            <div className="w-6 h-6" />
+                        )}
+                    </div>
                     {children}
                 </div>
             </main>

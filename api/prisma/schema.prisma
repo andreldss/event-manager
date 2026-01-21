@@ -30,4 +30,18 @@ model Client {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  events Event[]
+}
+
+model Event {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String 
+  date      DateTime
+  location  String
+  notes     String?
+  clientId  Int
+  client    Client  @relation(fields: [clientId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

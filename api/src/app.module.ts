@@ -2,8 +2,9 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { ClientsModule } from './clients/clients.module.js';
+import { EventsModule } from './events/events.module.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule, ClientsModule],
+  imports: [PrismaModule, AuthModule, ClientsModule, EventsModule],
 })
 export class AppModule { }
