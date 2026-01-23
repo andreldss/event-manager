@@ -72,7 +72,7 @@ export default function ClientsPage() {
                 </div>
             )}
 
-            <div className="w-[1200px] max-h-[70vh] p-4 overflow-y-auto rounded-xl shadow-lg">
+            <div className="w-full max-h-[70vh] p-4 overflow-y-auto rounded-xl shadow-lg">
                 <div className="p-4 flex flex-col gap-3">
                     <div className="px-4 py-3 border rounded-xl flex items-center justify-between">
                         <p className="font-semibold">
