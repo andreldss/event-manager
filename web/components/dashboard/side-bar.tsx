@@ -5,6 +5,7 @@ import { DoorOpen } from "lucide-react";
 import { useRouter } from 'next/navigation'
 
 export default function Sidebar({ children }: { children: React.ReactNode }) {
+
     const router = useRouter()
 
     async function Logout() {
@@ -15,16 +16,19 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             console.error('Falha no logout.');
         }
     }
+
     return (
-        <aside className="h-screen p-4 pl-8 rounded-xl">
-            <nav className="h-full w-full flex flex-col bg-white mr-10 shadow-sm rounded-xl">
-                <div className="p-4 pb-3 mb-3 flex justify-between items-center border-b">
+        <aside className="h-full p-4 pl-8 rounded-xl">
+            <nav className="h-full w-full flex flex-col bg-white mr-10 shadow-sm rounded-xl overflow-hidden">
+                <div className="p-4 pb-3 mb-3 flex justify-between items-center border-b shrink-0">
                     <h1 className="text-lg font-bold">event-manager</h1>
                 </div>
 
-                <ul className="flex-1 px-3">{children}</ul>
+                <ul className="flex-1 px-3 min-h-0 overflow-auto">
+                    {children}
+                </ul>
 
-                <div onClick={Logout} className="flex items-center border-t rounded-b-xl justify-center p-3 cursor-pointer bg-white text-red-800 font-bold hover:bg-red-800 hover:text-white active:opacity-80 transition-colors gap-2">
+                <div onClick={Logout} className="flex items-center border-t rounded-b-xl justify-center p-3 cursor-pointer bg-white text-red-800 font-bold hover:bg-red-800 hover:text-white active:opacity-80 transition-colors gap-2 shrink-0" >
                     <DoorOpen />Sair
                 </div>
             </nav>

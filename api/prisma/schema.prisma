@@ -34,7 +34,7 @@ model Client {
 }
 
 model Event {
-  id        Int      @id @default(autoincrement())
+  id        Int @id @default(autoincrement())
   name      String
   type      String 
   date      DateTime
@@ -44,4 +44,124 @@ model Event {
   client    Client  @relation(fields: [clientId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  participants Participant[]
+  transactions FinancialTransaction[]
+  paymentMonths EventPaymentMonth[]
+  checklist EventChecklist[]
 }
+
+model Participant {
+  id        Int   @id @default(autoincrement())
+  eventId   Int
+  name      String
+  createdAt DateTime @default(now())
+
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  collections Collection[]
+
+  @@index([eventId])
+  @@map("collection_participant")
+}
+
+model Collection {
+  id             Int   @id @default(autoincrement())
+  participantId  Int
+  referenceMonth String 
+  amount         Decimal  @db.Decimal(10,2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, referenceMonth])
+  @@index([referenceMonth])
+  @@index([participantId])
+  
+}
+
+model FinancialCategory {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions FinancialTransaction[]
+
+  @@map("financial_category")
+}
+
+enum FinancialType {
+  income
+  expense
+}
+
+enum FinancialStatus {
+  planned
+  settled
+}
+
+enum FinancialSourceType {
+  manual
+  collection
+}
+
+model FinancialTransaction {
+  id          Int      @id @default(autoincrement())
+  eventId     Int
+  type        FinancialType
+  status      FinancialStatus
+  amount      Decimal  @db.Decimal(10,2)
+
+  description String
+
+  categoryId  Int?
+  category    FinancialCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  paidAt      DateTime?
+
+  sourceType  FinancialSourceType @default(manual)
+  sourceId    Int?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event       Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([categoryId])
+  @@index([type])
+  @@index([status])
+  @@unique([sourceType, sourceId])
+
+  @@map("financial_transaction")
+}
+
+model EventPaymentMonth {
+  id      Int    @id @default(autoincrement())
+  eventId Int
+  month   String @db.VarChar(7)
+
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, month])
+  @@index([eventId])
+  @@index([month])
+
+  @@map("event_payment_months")
+}
+
+model EventChecklist {
+  id      Int    @id @default(autoincrement())
+  eventId Int
+  date      DateTime?
+  done      Boolean  @default(false)
+  text String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("event_checklist")
+}
+

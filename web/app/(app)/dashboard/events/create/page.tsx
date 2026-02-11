@@ -3,45 +3,33 @@ import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+type Client = {
+    id: number;
+    name: string;
+};
+
 export default function CreateEvent() {
 
     const [eventName, setEventName] = useState('');
     const [eventType, setEventType] = useState<'collective' | 'simple'>('simple');
-    const [clients, setClients] = useState<{ id: number; name: string }[]>([]);
+    const [eventDate, setEventDate] = useState('');
+    const [eventNotes, setEventNotes] = useState('');
+    const [eventLocation, setEventLocation] = useState('');
+    const router = useRouter();
+    const [clients, setClients] = useState<Client[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [clientId, setClientId] = useState<number | null>(null);
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
-    const [eventDate, setEventDate] = useState('')
-    const [eventLocation, setEventLocation] = useState('')
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
-    const [eventNotes, setEventNotes] = useState('')
-    const [isLoading, setIsLoading] = useState(false)
-    const router = useRouter();
 
     const filteredClients = clients.filter(c =>
-        c.name.toLowerCase().includes(query.toLowerCase())
+    c.name.toLowerCase().includes(query.toLowerCase())
     );
-
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-
-        setSaving(true);
-        setError('');
-
-        try {
-            const response = await apiFetch('/events/create', 'POST', { name: eventName, type: eventType, date: eventDate, location: eventLocation, notes: eventNotes, clientId: clientId });
-            router.push('/dashboard/events');
-        } catch (err) {
-            setError('Falha ao cadastrar evento. Tente novamente.');
-        } finally {
-            setSaving(false);
-        }
-    }
 
     async function loadClients() {
         setError('');
-        setIsLoading(true)
+        setLoading(true);
 
         try {
             const response = await apiFetch('/clients', 'GET');
@@ -50,26 +38,38 @@ export default function CreateEvent() {
             setError('Falha de rede ou servidor fora do ar.');
             setClients([]);
         } finally {
-            setIsLoading(false)
+            setLoading(false);
         }
     }
 
     useEffect(() => {
         loadClients();
     }, []);
+        
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
 
-    if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[80vh] gap-10">
-                <h1 className="font-bold text-2xl text-background">Criar Evento</h1>
-                <p className="text-gray-600">Carregando...</p>
-            </div>
-        );
+        setLoading(true);
+        setError('');
+
+        try {
+            await apiFetch('/events/create', 'POST', { name: eventName, type: eventType, date: eventDate, location: eventLocation, notes: eventNotes, clientId });
+            router.push('/dashboard/events');
+        } catch (err) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError('Falha ao criar evento. Tente novamente.');
+            }
+        } finally {
+            setLoading(false);
+        }
     }
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col items-center justify-center min-h-[80vh] gap-10">
             <h1 className="font-bold text-2xl text-background">Criar Evento</h1>
+
             <div className="flex gap-10">
                 <div className="flex flex-col gap-4">
                     <div>
@@ -85,58 +85,53 @@ export default function CreateEvent() {
                     <div className="flex flex-col">
                         <span className='text-sm text-background'>Tipo do Evento*</span>
                         <div className="flex gap-2">
-                            <button type="button" onClick={() => setEventType('collective')} className={`mt-1 px-4 py-2 rounded-lg border transition cursor-pointer
-                                ${eventType === 'collective' ? 'bg-background text-white' : 'bg-white px-4 py-2 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:background-400'}`}>
-                                Coletivo
-                            </button>
-
-                            <button type="button" onClick={() => setEventType('simple')} className={`mt-1 px-4 py-2 rounded-lg border transition cursor-pointer
-                                ${eventType === 'simple' ? 'bg-background text-white' : 'bg-white px-4 py-2 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:background-400'}`}>
+                            <button type="button" onClick={() => setEventType('simple')} className={`px-4 py-2 rounded-lg border transition cursor-pointer
+                                ${eventType === 'simple' ? 'bg-background text-white' : 'bg-white px-4 py-2 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:background-400'}`} >
                                 Simples
+                            </button>
+                            <button type="button" onClick={() => setEventType('collective')} className={`px-4 py-2 rounded-lg border transition cursor-pointer
+                                ${eventType === 'collective' ? 'bg-background text-white' : 'bg-white px-4 py-2 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:background-400'}`} >
+                                Coletivo
                             </button>
                         </div>
                     </div>
-                    <div className="relative">
+                    <div className="relative" tabIndex={0} onBlur={() => setOpen(false)}>
                         <span className="text-sm text-background">Cliente*</span>
+
                         <input
                             type="text"
-                            value={
-                                open ? query : clients.find(c => c.id === clientId)?.name || ''
-                            }
+                            value={open ? query : clients.find(c => c.id === clientId)?.name || '' }
                             onFocus={() => setOpen(true)}
                             onChange={(e) => {
-                                setQuery(e.target.value);
-                                setOpen(true);
+                            setQuery(e.target.value);
+                            setOpen(true);
                             }}
                             placeholder="Selecione um cliente..."
                             className="mt-1 w-full px-4 py-2 border rounded-lg bg-gray-50"
                         />
 
-
                         {open && (
                             <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto bg-white border rounded-lg shadow">
-                                {filteredClients.length === 0 && (
-                                    <div className="px-4 py-2 text-sm text-gray-500">
-                                        Selecione um cliente válido.
-                                    </div>
-                                )}
+                            {filteredClients.length === 0 && (
+                                <div className="px-4 py-2 text-sm text-gray-500">
+                                    Selecione um cliente válido.
+                                </div>
+                            )}
 
-
-                                {filteredClients.map((c) => (
-                                    <div
-                                        key={c.id}
-                                        onClick={() => {
-                                            setClientId(c.id);
-                                            setQuery('');
-                                            setOpen(false);
-                                        }}
-                                        className="px-4 py-2 cursor-pointer hover:bg-gray-100">
-                                        {c.name}
-                                    </div>
-                                ))}
+                            {filteredClients.map((c) => (
+                                <div key={c.id} className="px-4 py-2 cursor-pointer hover:bg-gray-100" onMouseDown={() => {
+                                    setClientId(c.id as number);
+                                    setQuery('');
+                                    setOpen(false);
+                                }} >
+                                    {c.name}
+                                </div>
+                            ))}
                             </div>
                         )}
                     </div>
+
+        
                     <div>
                         <span className='text-sm text-background'>Observações</span>
                         <textarea
@@ -169,32 +164,28 @@ export default function CreateEvent() {
                         />
                     </div>
                 </div>
-            </div>
+            </div> 
 
             {error && (
-                <div className="w-[500px] border border-red-300 bg-red-50 text-red-700 px-4 py-2 rounded-lg">
+                <div className="border border-red-300 bg-red-50 text-red-700 px-4 py-2 rounded-lg">
                     {error}
                 </div>
             )}
 
             <div className="flex gap-3">
-                <button
-                    type='submit'
-                    disabled={saving}
-                    className='py-2 px-4 bg-background hover:opacity-80 active:opacity-100 text-white font-semibold rounded-lg shadow cursor-pointer mb-2 disabled:opacity-60 disabled:cursor-not-allowed'
-                >
-                    {saving ? 'Criando...' : 'Criar'}
+                <button type='submit' disabled={loading} className='py-2 px-4 bg-background hover:opacity-80 active:opacity-100 text-white font-semibold rounded-lg shadow cursor-pointer mb-2'>
+                    Criar Evento
                 </button>
-
                 <button
                     type='button'
                     onClick={() => router.push('/dashboard/events')}
-                    disabled={saving}
-                    className="py-2 px-4 bg-white hover:bg-gray-50 border font-semibold rounded-lg shadow-sm cursor-pointer mb-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={loading}
+                    className="py-2 px-4 bg-white border border-background hover:opacity-80 active:opacity-100 font-semibold rounded-lg shadow-sm cursor-pointer mb-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                     Cancelar
-                </button>
+                </button>                
             </div>
+
         </form>
     )
 }

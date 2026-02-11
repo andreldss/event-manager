@@ -7,7 +7,10 @@ export async function apiFetch(url: string, method: string, body?: any) {
     });
 
     if (!response.ok) {
-        throw new Error('Erro na requisição');
+        const errorData = await response.json();
+
+        throw new Error(
+        typeof errorData.message === 'string' ? errorData.message : 'Erro na requisição.');
     }
 
     return response.json();

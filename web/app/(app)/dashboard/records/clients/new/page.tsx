@@ -19,10 +19,14 @@ export default function NewClient() {
         setError('');
 
         try {
-            const response = await apiFetch('/clients/new', 'POST', { name: clientName, phone: clientPhone, notes: clientNotes });
+            const response = await apiFetch('/clients', 'POST', { name: clientName, phone: clientPhone, notes: clientNotes });
             router.push('/dashboard/records/clients');
         } catch (err) {
-            setError('Falha ao cadastrar cliente. Tente novamente.');
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError('Falha ao cadastrar cliente. Tente novamente.');
+            }
         } finally {
             setLoading(false);
         }

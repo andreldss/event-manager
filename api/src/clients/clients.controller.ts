@@ -7,7 +7,7 @@ export class ClientsController {
 
     constructor(private clientService: ClientsService) { }
 
-    @Post('new')
+    @Post()
     register(@Body() body: CreateClientDto) {
         return this.clientService.create(body)
     }

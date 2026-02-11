@@ -29,6 +29,20 @@ export default function RecordsDashboard() {
         loadClients();
     }, []);
 
+    if (isLoading) {
+        return (
+            <div className="mx-auto w-full max-w-6xl px-4 py-10">
+                <div className="mb-8">
+                    <h1 className="text-2xl font-bold">Cadastros Básicos</h1>
+                </div>
+            
+                <div className="flex items-center justify-center h-[60vh]">
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-background"></div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="mx-auto w-full max-w-6xl px-4 py-10">
             <div className="mb-8">
@@ -47,6 +61,12 @@ export default function RecordsDashboard() {
                     countLabel={countClients}
                     viewHref="/dashboard/records/clients"
                     newHref="/dashboard/records/clients/new"
+                />
+                <RecordCard
+                    title="Categorias Financeiras"
+                    countLabel={countClients}
+                    viewHref="/dashboard/records/financial-category"
+                    newHref="/dashboard/records/financial-category/new"
                 />
 
             </div>

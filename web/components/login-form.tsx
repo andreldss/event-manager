@@ -19,10 +19,14 @@ export default function LoginForm() {
         setError('');
 
         try {
-            const response = await apiFetch('/auth/login', 'POST', { email, password });
+            await apiFetch('/auth/login', 'POST', { email, password });
             router.push('/dashboard');
         } catch (err) {
-            setError('Falha no login. Verifique suas credenciais.');
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError('Falha no login. Verifique suas credenciais.');
+            }
         } finally {
             setLoading(false);
         }
