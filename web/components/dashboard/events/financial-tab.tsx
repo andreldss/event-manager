@@ -43,9 +43,9 @@ export default function FinancialTab() {
         try {
             const response = await apiFetch(`/financial/${eventId}`, 'GET');
             setTransactions(Array.isArray(response) ? response : []);
-        } catch (err: any) {
-            setError('Falha de rede ou servidor fora do ar.');
-            setTransactions([]);
+        } catch (err) {
+            if (err instanceof Error) setError(err.message);
+            else setError('Falha de rede ou servidor fora do ar.'); setTransactions([]);
         } finally {
             setIsLoading(false);
         }

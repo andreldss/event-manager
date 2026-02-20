@@ -9,6 +9,7 @@ import OverviewTab from '@/components/dashboard/events/overview-tab';
 import CollectionsTab from '@/components/dashboard/events/collections-tab';
 import Tab from '@/components/dashboard/events/tab';
 import FinancialTab from "@/components/dashboard/events/financial-tab";
+import AttachmentsTab from "@/components/dashboard/events/attachments-tab";
 
 type Event = {
     id: string;
@@ -96,7 +97,7 @@ export default function EventPage() {
                     {activeTab === 'overview' && <OverviewTab />}
                     {activeTab === 'finance' && <FinancialTab />}
                     {activeTab === 'collections' && <CollectionsTab />}
-                    {activeTab === 'attachments' && <div />}
+                    {activeTab === 'attachments' && <AttachmentsTab />}
                 </div>
             </div>
 
