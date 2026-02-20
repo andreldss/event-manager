@@ -27,7 +27,7 @@ export class FinancialCategoryService {
 
     async update(id: number, name: string) {
         const idNumber = Number(id);
-        
+
         if (Number.isNaN(idNumber)) {
             throw new BadRequestException("ID inválido.");
         }
@@ -47,7 +47,7 @@ export class FinancialCategoryService {
 
     async remove(id: number) {
         const idNumber = Number(id);
-        
+
         if (Number.isNaN(idNumber)) {
             throw new BadRequestException("ID inválido.");
         }
@@ -71,5 +71,9 @@ export class FinancialCategoryService {
         return this.prisma.financialCategory.findUnique({
             where: { id: idNumber },
         });
+    }
+
+    async getCount() {
+        return this.prisma.financialCategory.count()
     }
 }

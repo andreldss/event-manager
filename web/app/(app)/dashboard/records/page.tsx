@@ -9,6 +9,7 @@ export default function RecordsDashboard() {
     const [error, setError] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [countClients, setCountClients] = useState('')
+    const [countFinancialCategorys, setFinancialCategorys] = useState('')
 
     async function loadClients() {
         setError('');
@@ -25,8 +26,30 @@ export default function RecordsDashboard() {
         }
     }
 
+    async function loadFinancialCategorys() {
+        setError('');
+        setIsLoading(true);
+
+        try {
+            const response = await apiFetch('/financial-category/count', 'GET');
+            setFinancialCategorys(response);
+        } catch (error) {
+            if (error instanceof Error) {
+                setError(error.message);
+                setFinancialCategorys('-');
+            } else {
+                setError('Falha de rede ou servidor fora do ar.');
+                setFinancialCategorys('-');
+            }
+
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
     useEffect(() => {
         loadClients();
+        loadFinancialCategorys();
     }, []);
 
     if (isLoading) {
@@ -35,7 +58,7 @@ export default function RecordsDashboard() {
                 <div className="mb-8">
                     <h1 className="text-2xl font-bold">Cadastros Básicos</h1>
                 </div>
-            
+
                 <div className="flex items-center justify-center h-[60vh]">
                     <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-background"></div>
                 </div>
@@ -64,7 +87,7 @@ export default function RecordsDashboard() {
                 />
                 <RecordCard
                     title="Categorias Financeiras"
-                    countLabel={countClients}
+                    countLabel={countFinancialCategorys}
                     viewHref="/dashboard/records/financial-category"
                     newHref="/dashboard/records/financial-category/new"
                 />

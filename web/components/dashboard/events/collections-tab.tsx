@@ -12,21 +12,6 @@ type PaymentMonth = string;
 type PaymentsMap = Record<string, number>;
 type DraftMap = Record<string, string>;
 
-const MONTHS = [
-    { key: '2026-01', label: 'Jan' },
-    { key: '2026-02', label: 'Fev' },
-    { key: '2026-03', label: 'Mar' },
-    { key: '2026-04', label: 'Abr' },
-    { key: '2026-05', label: 'Mai' },
-    { key: '2026-06', label: 'Jun' },
-    { key: '2026-07', label: 'Jul' },
-    { key: '2026-08', label: 'Ago' },
-    { key: '2026-09', label: 'Set' },
-    { key: '2026-10', label: 'Out' },
-    { key: '2026-11', label: 'Nov' },
-    { key: '2026-12', label: 'Dez' }
-];
-
 function parseMonthInput(value: string): string | null {
     const match = (value || '').trim().match(/^(\d{2})\/(\d{4})$/);
     if (!match) return null;
@@ -271,15 +256,10 @@ export default function CollectionsTab() {
 
     const hasMonthsConfigured = paymentMonths.length > 0;
 
-    const monthsToRender = hasMonthsConfigured
-        ? paymentMonths.map((month) => ({
-            key: month,
-            label: monthLabelPtBrWithYear(month),
-        }))
-        : MONTHS.map((m) => ({
-            key: m.key,
-            label: monthLabelPtBrWithYear(m.key),
-        }));
+    const monthsToRender = paymentMonths.map((month) => ({
+        key: month,
+        label: monthLabelPtBrWithYear(month),
+    }))
 
     const totalPages = Math.max(1, Math.ceil(monthsToRender.length / MONTHS_PER_PAGE));
     const shouldShowPager = monthsToRender.length > MONTHS_PER_PAGE;

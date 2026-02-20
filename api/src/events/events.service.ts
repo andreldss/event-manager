@@ -237,7 +237,7 @@ export class EventsService {
 
         return collections.map(c => ({
             participantId: c.participantId,
-            referenceMonth: c.referenceMonth, 
+            referenceMonth: c.referenceMonth,
             amount: Number(c.amount),
         }));
     }
@@ -248,7 +248,7 @@ export class EventsService {
         if (Number.isNaN(eventIdNumber)) {
             throw new BadRequestException("ID do evento inválido.");
         }
-        
+
         const months = await this.prisma.eventPaymentMonth.findMany({
             where: {
                 eventId: eventIdNumber,
@@ -318,7 +318,7 @@ export class EventsService {
 
     async listEventChecklist(eventId: number) {
         const eventIdNumber = Number(eventId);
-        if (Number.isNaN(eventIdNumber)) throw new BadRequestException("ID do evento inválido.");   
+        if (Number.isNaN(eventIdNumber)) throw new BadRequestException("ID do evento inválido.");
 
         return this.prisma.eventChecklist.findMany({
             where: { eventId: eventIdNumber },
@@ -351,6 +351,40 @@ export class EventsService {
         return this.prisma.eventChecklist.update({
             where: { id: idNumber },
             data: { done: !item.done },
+        });
+    }
+
+    async createEventGroup(eventId: number, text: string) {
+        const eventIdNumber = Number(eventId);
+        if (Number.isNaN(eventIdNumber)) throw new BadRequestException("ID do item de checklist inválido.");
+
+        const textTrim = text.trim();
+        if (!textTrim) throw new BadRequestException("Texto do item é obrigatório.");
+
+        return this.prisma.eventGroup.create({
+            data: {
+                eventId: eventIdNumber,
+                text: textTrim,
+            },
+        });
+    }
+
+    async listEventGroup(eventId: number) {
+        const eventIdNumber = Number(eventId);
+        if (Number.isNaN(eventIdNumber)) throw new BadRequestException("ID do evento inválido.");
+
+        return this.prisma.eventGroup.findMany({
+            where: { eventId: eventIdNumber },
+            orderBy: { createdAt: 'asc' },
+        });
+    }
+
+    async deleteEventGroupItem(id: number) {
+        const idNumber = Number(id);
+        if (Number.isNaN(idNumber)) throw new BadRequestException("ID do item de checklist inválido.");
+
+        return this.prisma.eventGroup.delete({
+            where: { id: idNumber },
         });
     }
 }

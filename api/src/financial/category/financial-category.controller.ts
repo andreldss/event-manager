@@ -22,6 +22,11 @@ export class FinancialCategoryController {
         return this.service.update(Number(id), body.name);
     }
 
+    @Get('count')
+    count() {
+        return this.service.getCount();
+    }
+
     @Get(':id')
     getById(@Param('id') id: string) {
         return this.service.getById(Number(id));
@@ -31,4 +36,5 @@ export class FinancialCategoryController {
     remove(@Param('id') id: string) {
         return this.service.remove(Number(id));
     }
+
 }

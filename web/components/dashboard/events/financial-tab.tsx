@@ -72,7 +72,7 @@ export default function FinancialTab() {
                 income += amount;
             } else {
                 if (t.status === 'planned') plannedExpense += amount;
-                else expense += amount; 
+                else expense += amount;
             }
         }
 
@@ -140,15 +140,19 @@ export default function FinancialTab() {
                                 </div>
                             )}
                         </div>
-                        
+
                         <p className="text-sm text-background">Movimentações</p>
                     </div>
 
                     <div className="flex-1 min-h-0 overflow-auto rounded-xl">
                         {isLoading ? (
-                            <div className="p-6 text-background">Buscando transações...</div>
+                            <div className="flex flex-col items-center justify-center mt-5">
+                                <div className="w-8 h-8 border-4 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                                <div className="p-6 text-background text-gray-600">Buscando transações...</div>
+                            </div>
+
                         ) : filteredTransactions.length === 0 ? (
-                            <div className="p-6 text-background">
+                            <div className="p-6 text-background text-gray-600">
                                 Nenhuma transação encontrada.
                             </div>
                         ) : (

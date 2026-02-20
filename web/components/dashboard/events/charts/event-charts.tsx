@@ -27,12 +27,12 @@ function formatBRL(value: number) {
 }
 
 function formatDateBR(dateStr: string) {
-  const normalized = dateStr.replace(' ', 'T') + 'Z';
+    const normalized = dateStr.replace(' ', 'T') + 'Z';
 
-  const d = new Date(normalized);
-  if (Number.isNaN(d.getTime())) return dateStr;
+    const d = new Date(normalized);
+    if (Number.isNaN(d.getTime())) return dateStr;
 
-  return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+    return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 }
 
 function CustomTooltip({ active, payload, label }: any) {

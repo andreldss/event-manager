@@ -5,6 +5,7 @@ import { EventsService } from './events.service.js';
 import { UpsertCollectionDto } from './dto/collection.dto.js';
 import { CreatePaymentMonthDto } from './dto/paymentmonth.js';
 import { CreateChecklistItemDto } from './dto/checklist.js';
+import { CreateGroupItemDto } from './dto/group.js';
 
 @Controller('events')
 export class EventsController {
@@ -36,7 +37,7 @@ export class EventsController {
     }
 
     @Put(':eventId/collections')
-    upsertCollection( @Param('eventId') eventId: number, @Body() body: UpsertCollectionDto) {
+    upsertCollection(@Param('eventId') eventId: number, @Body() body: UpsertCollectionDto) {
         return this.eventService.upsertCollectionPayment(
             eventId,
             body.participantId,
@@ -78,5 +79,20 @@ export class EventsController {
     @Delete(':eventId/checklist/:itemId')
     deleteChecklistItem(@Param('itemId') itemId: number) {
         return this.eventService.deleteEventChecklistItem(itemId);
+    }
+
+    @Post(':eventId/group')
+    createChecklistGroup(@Param('eventId') eventId: number, @Body() body: CreateGroupItemDto) {
+        return this.eventService.createEventGroup(eventId, body.text);
+    }
+
+    @Get(':eventId/group')
+    getGroups(@Param('eventId') eventId: number) {
+        return this.eventService.listEventGroup(eventId);
+    }
+
+    @Delete(':eventId/group/:itemId')
+    deleteGroupItem(@Param('itemId') itemId: number) {
+        return this.eventService.deleteEventGroupItem(itemId);
     }
 }

@@ -49,6 +49,7 @@ model Event {
   transactions FinancialTransaction[]
   paymentMonths EventPaymentMonth[]
   checklist EventChecklist[]
+  group EventGroup[]
 }
 
 model Participant {
@@ -165,3 +166,14 @@ model EventChecklist {
   @@map("event_checklist")
 }
 
+model EventGroup {
+  id      Int    @id @default(autoincrement())
+  eventId Int
+  text String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("event_group")
+}
