@@ -64,10 +64,6 @@ export default function LoginForm() {
                 <button type='submit' className='w-full py-2 px-4 bg-background hover:opacity-80 active:opacity-100 text-white font-semibold rounded-lg shadow cursor-pointer mb-2'>
                     {loading ? 'Entrando..' : 'Entrar'}
                 </button>
-
-                <div className='flex items-center justify-center mt-4'>
-                    <Link href="/register">Não tem uma conta? Registre-se aqui</Link>
-                </div>
                 
             </form>
         </div>

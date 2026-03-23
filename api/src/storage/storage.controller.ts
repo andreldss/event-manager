@@ -1,34 +1,38 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, Query, BadRequestException } from '@nestjs/common';
 import { StorageService } from './storage.service.js';
-import { CreateStorageDto } from './dto/create-storage.dto.js';
-import { UpdateStorageDto } from './dto/update-storage.dto.js';
+import type { CreateFolderDto } from './dto/folder/create-folder.dto.js';
 
 @Controller('storage')
 export class StorageController {
-  constructor(private readonly storageService: StorageService) { }
+  constructor(private readonly storageService: StorageService) {}
 
-  @Post()
-  create(@Body() createStorageDto: CreateStorageDto) {
-    return this.storageService.create(createStorageDto);
+  @Post('folder')
+  createFolder(@Body() body: CreateFolderDto, @Req() req: any) {
+    const userId = req.user?.id ?? null;
+    return this.storageService.createFolder(body, userId);
   }
 
-  @Get()
-  findAll() {
-    return this.storageService.findAll();
-  }
+  // GET /storage/folders?eventId=3&parentId=12
+  @Get('folders')
+  listFolders(
+    @Query('eventId') eventId: string,
+    @Query('parentId') parentId?: string,
+  ) {
+    const eventIdNum = Number(eventId);
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.storageService.findOne(+id);
-  }
+    if (!eventId || Number.isNaN(eventIdNum)) {
+      throw new BadRequestException('eventId inválido.');
+    }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateStorageDto: UpdateStorageDto) {
-    return this.storageService.update(+id, updateStorageDto);
-  }
+    const parentIdNum =
+      parentId !== undefined && parentId !== null && parentId !== ''
+        ? Number(parentId)
+        : null;
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.storageService.remove(+id);
+    if (parentIdNum !== null && Number.isNaN(parentIdNum)) {
+      throw new BadRequestException('parentId inválido.');
+    }
+
+    return this.storageService.listFolders(eventIdNum, parentIdNum);
   }
 }

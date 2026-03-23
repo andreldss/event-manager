@@ -1,30 +1,124 @@
-import { Injectable } from '@nestjs/common';
-import { CreateStorageDto } from './dto/create-storage.dto.js';
-import { UpdateStorageDto } from './dto/update-storage.dto.js';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { CreateFolderDto } from './dto/folder/create-folder.dto.js';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 @Injectable()
 export class StorageService {
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(private readonly prisma: PrismaService) { }
+  private readonly storageRoot =
+    process.env.STORAGE_ROOT || path.join(process.cwd(), 'storage');
 
-  create(createStorageDto: CreateStorageDto) {
-    return 'This action adds a new storage';
+  private sanitizeFolderName(name: string) {
+    return name
+      .trim()
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
+      .replace(/\s+/g, ' ')
+      .slice(0, 80);
   }
 
-  findAll() {
-    return `This action returns all storage`;
+  async createFolder(body: CreateFolderDto, userId: number | null) {
+    if (!body.name || typeof body.name !== 'string') {
+      throw new BadRequestException('Nome da pasta inválido.');
+    }
+
+    const name = this.sanitizeFolderName(body.name);
+    if (!name)
+      throw new BadRequestException('Nome da pasta não pode ser vazio.');
+
+    if (!body.eventId || typeof body.eventId !== 'number') {
+      throw new BadRequestException('EventId inválido.');
+    }
+
+    const parentId = body.parentId ?? null;
+
+    let parent: {
+      id: number;
+      eventId: number;
+      type: string;
+      storageKey: string | null;
+    } | null = null;
+
+    if (parentId !== null) {
+      parent = await this.prisma.storageNode.findUnique({
+        where: { id: parentId },
+        select: { id: true, eventId: true, type: true, storageKey: true },
+      });
+
+      if (!parent) throw new BadRequestException('Pasta pai não encontrada.');
+      if (parent.eventId !== body.eventId)
+        throw new BadRequestException('Pasta pai não pertence a este evento.');
+      if (parent.type !== 'folder')
+        throw new BadRequestException('parentId precisa ser uma pasta.');
+      if (!parent.storageKey)
+        throw new BadRequestException(
+          'Pasta pai sem storageKey (inconsistência).',
+        );
+    }
+
+    const baseKey = parent
+      ? (parent.storageKey as string)
+      : `events/${body.eventId}/Anexos`;
+    const storageKey = `${baseKey}/${name}`;
+
+    const created = await this.prisma.storageNode.create({
+      data: {
+        name,
+        type: 'folder',
+        eventId: body.eventId,
+        parentId,
+        createdById: userId ?? null,
+        storageKey,
+      },
+      select: { id: true, eventId: true, storageKey: true },
+    });
+
+    if (!created.storageKey) {
+      await this.prisma.storageNode
+        .delete({ where: { id: created.id } })
+        .catch(() => {});
+      throw new InternalServerErrorException(
+        'storageKey não foi gerado corretamente.',
+      );
+    }
+
+    const folderPath = path.join(
+      this.storageRoot,
+      ...created.storageKey.split('/'),
+    );
+
+    try {
+      await fs.mkdir(folderPath, { recursive: true });
+      return created;
+    } catch (err) {
+      await this.prisma.storageNode
+        .delete({ where: { id: created.id } })
+        .catch(() => {});
+      throw new InternalServerErrorException('Falha ao criar pasta no disco.');
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} storage`;
-  }
-
-  update(id: number, updateStorageDto: UpdateStorageDto) {
-    return `This action updates a #${id} storage`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} storage`;
+  async listFolders(eventId: number, parentId: number | null) {
+    return this.prisma.storageNode.findMany({
+      where: {
+        eventId,
+        parentId,
+        type: 'folder',
+      },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        eventId: true,
+        parentId: true,
+        updatedAt: true,
+      },
+    });
   }
 }

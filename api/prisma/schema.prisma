@@ -20,6 +20,8 @@ model User {
   name      String
   isAdmin   Boolean @default(false)
   createdAt DateTime @default(now())
+
+  storageNodes StorageNode[]
 }
 
 model Client {
@@ -50,18 +52,22 @@ model Event {
   paymentMonths EventPaymentMonth[]
   checklist EventChecklist[]
   group EventGroup[]
+  storageNodes StorageNode[]
 }
 
 model Participant {
-  id        Int   @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   eventId   Int
   name      String
+  groupId   Int?  
   createdAt DateTime @default(now())
 
   event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  group       EventGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
   collections Collection[]
 
   @@index([eventId])
+  @@index([eventId, groupId])
   @@map("collection_participant")
 }
 
@@ -174,6 +180,38 @@ model EventGroup {
   updatedAt DateTime @updatedAt
 
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participants Participant[]
 
   @@map("event_group")
+}
+
+enum StorageNodeType {
+  folder
+  file
+}
+
+model StorageNode {
+  id          Int             @id @default(autoincrement())
+  eventId     Int
+  event       Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  parentId    Int?
+  parent      StorageNode?    @relation("StorageTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    StorageNode[]   @relation("StorageTree")
+  type        StorageNodeType
+  name        String
+  mimeType    String?         @db.VarChar(128)
+  size        Int?    
+  storageKey  String?       
+  thumbKey    String?      
+  createdById Int?
+  createdBy   User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([eventId, parentId, createdAt])
+  @@index([eventId, parentId, name])
+  @@index([eventId, type])
+
+  @@unique([eventId, parentId, name])
 }

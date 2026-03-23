@@ -4,7 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { ClientsModule } from './clients/clients.module.js';
 import { EventsModule } from './events/events.module.js';
 import { FinancialModule } from './financial/financial.module.js';
-import { StorageModule } from './storage/storage.module';
+import { StorageModule } from './storage/storage.module.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, ClientsModule, EventsModule, FinancialModule, StorageModule],

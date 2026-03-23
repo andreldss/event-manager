@@ -9,8 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "ajv": "^8.18.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^4.1.0",
+    "jspdf": "^4.2.0",
     "lucide-react": "^0.562.0",
     "next": "^16.1.6",
     "react": "19.2.1",
@@ -26,5 +27,9 @@
     "eslint-config-next": "16.0.8",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "minimatch": "^10.2.1"
   }
+  
 }
