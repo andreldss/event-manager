@@ -1,12 +1,12 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
+import type { EventGroup } from "@/types/group";
 import { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 type Participant = { id: number; name: string; groupId?: number | null };
-type EventGroup = { id: number; text: string };
 type PaymentMonth = string;
 
 type PaymentsMap = Record<string, number>;
@@ -59,17 +59,11 @@ function monthLabelPtBrWithYear(monthKey: string) {
 
 type Props = {
   eventId: number;
-  refreshKey: number;
-  onRefresh?: () => void;
+  groups: EventGroup[];
 };
 
-export default function CollectionsTab({
-  eventId,
-  refreshKey,
-  onRefresh,
-}: Props) {
+export default function CollectionsTab({ eventId, groups }: Props) {
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [groups, setGroups] = useState<EventGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | "all">("all");
 
   const [payments, setPayments] = useState<PaymentsMap>({});
@@ -205,17 +199,6 @@ export default function CollectionsTab({
     }
   }
 
-  async function fetchGroups() {
-    if (!eventId) return;
-
-    try {
-      const data = await apiFetch(`/events/${eventId}/group`, "GET");
-      setGroups(Array.isArray(data) ? data : []);
-    } catch {
-      setGroups([]);
-    }
-  }
-
   async function fetchCollections() {
     if (!eventId) return;
 
@@ -257,11 +240,11 @@ export default function CollectionsTab({
 
       const months: PaymentMonth[] = Array.isArray(data)
         ? data
-            .filter(
-              (m) => typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m),
-            )
-            .slice()
-            .sort((a, b) => a.localeCompare(b))
+          .filter(
+            (m) => typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m),
+          )
+          .slice()
+          .sort((a, b) => a.localeCompare(b))
         : [];
 
       setPaymentMonths(months);
@@ -632,7 +615,6 @@ export default function CollectionsTab({
   useEffect(() => {
     if (!eventId) return;
     fetchParticipants();
-    fetchGroups();
     fetchCollections();
     fetchPaymentsMonths();
   }, [eventId]);
@@ -640,6 +622,16 @@ export default function CollectionsTab({
   useEffect(() => {
     loadLogo();
   }, []);
+
+  useEffect(() => {
+    if (selectedGroupId === "all") return;
+
+    const exists = groups.some((group) => group.id === selectedGroupId);
+
+    if (!exists) {
+      setSelectedGroupId("all");
+    }
+  }, [groups, selectedGroupId]);
 
   const monthsToRender = paymentMonths.map((month) => ({
     key: month,
@@ -655,9 +647,9 @@ export default function CollectionsTab({
 
   const visibleMonths = shouldShowPager
     ? monthsToRender.slice(
-        monthPage * MONTHS_PER_PAGE,
-        (monthPage + 1) * MONTHS_PER_PAGE,
-      )
+      monthPage * MONTHS_PER_PAGE,
+      (monthPage + 1) * MONTHS_PER_PAGE,
+    )
     : monthsToRender;
 
   useEffect(() => {

@@ -18,15 +18,9 @@ type Transaction = {
 
 type Props = {
   eventId: number;
-  refreshKey: number;
-  onRefresh?: () => void;
 };
 
-export default function FinancialTab({
-  eventId,
-  refreshKey,
-  onRefresh,
-}: Props) {
+export default function FinancialTab({ eventId }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -64,7 +58,7 @@ export default function FinancialTab({
   useEffect(() => {
     if (!eventId) return;
     loadTransactions();
-  }, [eventId, refreshKey]);
+  }, [eventId]);
 
   const filteredTransactions = transactions.filter(
     (t) =>
@@ -226,7 +220,6 @@ export default function FinancialTab({
         onClose={() => setOpenModal(false)}
         onCreated={() => {
           loadTransactions();
-          onRefresh?.();
         }}
         eventId={eventId}
       />

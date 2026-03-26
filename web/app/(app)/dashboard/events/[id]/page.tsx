@@ -10,6 +10,7 @@ import CollectionsTab from "@/components/dashboard/events/collections/collection
 import Tab from "@/components/dashboard/events/tab";
 import FinancialTab from "@/components/dashboard/events/financial/financial-tab";
 import AttachmentsTab from "@/components/dashboard/events/storage/attachments-tab";
+import { EventGroup } from "@/types/group";
 
 type Event = {
   id: string;
@@ -31,10 +32,25 @@ export default function EventPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [groups, setGroups] = useState<EventGroup[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
 
-  const [refreshKey, setRefreshKey] = useState(0);
-  function triggerRefresh() {
-    setRefreshKey((k) => k + 1);
+
+  async function loadGroups() {
+    setError('');
+    setGroupsLoading(true);
+
+    try {
+      const response = await apiFetch(`/events/${id}/group`, 'GET');
+      setGroups(Array.isArray(response) ? response : []);
+      console.log(groups)
+    } catch (err) {
+      if (err instanceof Error) setError(err.message);
+      else setError('Falha ao carregar grupos.');
+      setGroups([]);
+    } finally {
+      setGroupsLoading(false);
+    }
   }
 
   async function loadEvent() {
@@ -64,7 +80,7 @@ export default function EventPage() {
   }
 
   useEffect(() => {
-    if (id) loadEvent();
+    if (id) loadEvent(); loadGroups();
   }, [id]);
 
   useEffect(() => {
@@ -123,14 +139,16 @@ export default function EventPage() {
 
         <div className="p-6 flex-1 min-h-0">
           <div className={activeTab === "overview" ? "block h-full" : "hidden"}>
-            <OverviewTab eventId={Number(event.id)} refreshKey={refreshKey} />
+            <OverviewTab
+              eventId={Number(event.id)}
+              groups={groups}
+              onGroupsChanged={loadGroups}
+            />
           </div>
 
           <div className={activeTab === "finance" ? "block h-full" : "hidden"}>
             <FinancialTab
               eventId={Number(event.id)}
-              refreshKey={refreshKey}
-              onRefresh={triggerRefresh}
             />
           </div>
 
@@ -142,7 +160,7 @@ export default function EventPage() {
             >
               <CollectionsTab
                 eventId={Number(event.id)}
-                refreshKey={refreshKey}
+                groups={groups}
               />
             </div>
           ) : null}
@@ -152,7 +170,6 @@ export default function EventPage() {
           >
             <AttachmentsTab
               eventId={Number(event.id)}
-              refreshKey={refreshKey}
             />
           </div>
         </div>

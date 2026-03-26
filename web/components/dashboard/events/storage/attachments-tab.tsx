@@ -16,15 +16,9 @@ type Folder = {
 
 type Props = {
   eventId: number;
-  refreshKey: number;
-  onRefresh?: () => void;
 };
 
-export default function AttachmentsTab({
-  eventId,
-  refreshKey,
-  onRefresh,
-}: Props) {
+export default function AttachmentsTab({ eventId }: Props) {
   const [search, setSearch] = useState("");
   const [openModal, setOpenModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
