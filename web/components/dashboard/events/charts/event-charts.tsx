@@ -20,7 +20,7 @@ type Point = {
 
 type EventChartProps = {
   eventId: number;
-  refreshKey?: number;
+  financialRefreshTrigger: number;
 };
 
 function formatBRL(value: number) {
@@ -70,7 +70,7 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-export function EventChart({ eventId, refreshKey = 0 }: EventChartProps) {
+export function EventChart({ eventId, financialRefreshTrigger }: EventChartProps) {
   const [data, setData] = useState<Point[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -93,7 +93,7 @@ export function EventChart({ eventId, refreshKey = 0 }: EventChartProps) {
   useEffect(() => {
     if (!eventId) return;
     loadCashflow();
-  }, [eventId, refreshKey]);
+  }, [eventId, financialRefreshTrigger]);
 
   return (
     <div className="h-full min-h-0 border rounded-2xl bg-white p-6">

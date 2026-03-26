@@ -18,9 +18,10 @@ type Transaction = {
 
 type Props = {
   eventId: number;
+  onFinancialChanged: () => void;
 };
 
-export default function FinancialTab({ eventId }: Props) {
+export default function FinancialTab({ eventId, onFinancialChanged }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -220,8 +221,10 @@ export default function FinancialTab({ eventId }: Props) {
         onClose={() => setOpenModal(false)}
         onCreated={() => {
           loadTransactions();
+          onFinancialChanged();
         }}
         eventId={eventId}
+
       />
     </div>
   );

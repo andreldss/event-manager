@@ -10,7 +10,7 @@ import * as path from 'node:path';
 
 @Injectable()
 export class StorageService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private readonly storageRoot =
     process.env.STORAGE_ROOT || path.join(process.cwd(), 'storage');
@@ -62,9 +62,20 @@ export class StorageService {
         );
     }
 
+    const eventId = body.eventId
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { name: true },
+    });
+
+    if (!event) {
+      throw new BadRequestException("Evento não encontrado.");
+    }
+
     const baseKey = parent
       ? (parent.storageKey as string)
-      : `events/${body.eventId}/Anexos`;
+      : `events/${eventId + ' - ' + event.name}`;
     const storageKey = `${baseKey}/${name}`;
 
     const created = await this.prisma.storageNode.create({
@@ -82,7 +93,7 @@ export class StorageService {
     if (!created.storageKey) {
       await this.prisma.storageNode
         .delete({ where: { id: created.id } })
-        .catch(() => {});
+        .catch(() => { });
       throw new InternalServerErrorException(
         'storageKey não foi gerado corretamente.',
       );
@@ -99,7 +110,7 @@ export class StorageService {
     } catch (err) {
       await this.prisma.storageNode
         .delete({ where: { id: created.id } })
-        .catch(() => {});
+        .catch(() => { });
       throw new InternalServerErrorException('Falha ao criar pasta no disco.');
     }
   }

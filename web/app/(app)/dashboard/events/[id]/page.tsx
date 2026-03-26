@@ -34,7 +34,11 @@ export default function EventPage() {
   const [error, setError] = useState("");
   const [groups, setGroups] = useState<EventGroup[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
+  const [financialRefreshTrigger, setFinancialRefreshTrigger] = useState(0);
 
+  function handleFinancialChanged() {
+    setFinancialRefreshTrigger((prev) => prev + 1);
+  }
 
   async function loadGroups() {
     setError('');
@@ -143,12 +147,14 @@ export default function EventPage() {
               eventId={Number(event.id)}
               groups={groups}
               onGroupsChanged={loadGroups}
+              financialRefreshTrigger={financialRefreshTrigger}
             />
           </div>
 
           <div className={activeTab === "finance" ? "block h-full" : "hidden"}>
             <FinancialTab
               eventId={Number(event.id)}
+              onFinancialChanged={handleFinancialChanged}
             />
           </div>
 

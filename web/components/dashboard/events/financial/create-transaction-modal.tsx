@@ -199,7 +199,7 @@ export default function CreateTransactionModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="px-4 py-2 border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200"
-              placeholder="Ex: DJ, iluminação, aluguel do salão..."
+              placeholder={type === 'income' ? "Ex: Pagamento parcela, recebimento" : "Ex: DJ, iluminação, aluguel do salão..."}
               disabled={loading}
             />
           </div>
