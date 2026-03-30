@@ -2,8 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -12,7 +14,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { StorageService } from './storage.service.js';
+import { StorageService, SortField, SortOrder } from './storage.service.js';
 import type { CreateFolderDto } from './dto/folder/create-folder.dto.js';
 import type { Response } from 'express';
 
@@ -26,11 +28,29 @@ export class StorageController {
     return this.storageService.createFolder(body, userId);
   }
 
+  @Get('folders')
+  listAllFolders(@Query('eventId') eventId: string) {
+    const eventIdNum = Number(eventId);
+    if (!eventId || Number.isNaN(eventIdNum))
+      throw new BadRequestException('eventId inválido.');
+    return this.storageService.listAllFolders(eventIdNum);
+  }
+
+  @Get('breadcrumb')
+  getBreadcrumb(@Query('folderId') folderId: string) {
+    const id = Number(folderId);
+    if (!folderId || Number.isNaN(id))
+      throw new BadRequestException('folderId inválido.');
+    return this.storageService.getBreadcrumb(id);
+  }
+
   @Get('items')
   listItems(
     @Query('eventId') eventId: string,
     @Query('parentId') parentId?: string,
     @Query('cursor') cursor?: string,
+    @Query('sortField') sortField?: string,
+    @Query('sortOrder') sortOrder?: string,
   ) {
     const eventIdNum = Number(eventId);
     if (!eventId || Number.isNaN(eventIdNum))
@@ -46,7 +66,16 @@ export class StorageController {
     if (cursorNum !== undefined && Number.isNaN(cursorNum))
       throw new BadRequestException('cursor inválido.');
 
-    return this.storageService.listItems(eventIdNum, parentIdNum, cursorNum);
+    const validSortFields: SortField[] = ['name', 'updatedAt', 'size'];
+    const validSortOrders: SortOrder[] = ['asc', 'desc'];
+
+    const sf: SortField = validSortFields.includes(sortField as SortField)
+      ? (sortField as SortField) : 'name';
+
+    const so: SortOrder = validSortOrders.includes(sortOrder as SortOrder)
+      ? (sortOrder as SortOrder) : 'asc';
+
+    return this.storageService.listItems(eventIdNum, parentIdNum, cursorNum, sf, so);
   }
 
   @Post('files')
@@ -71,18 +100,55 @@ export class StorageController {
 
     const userId = req?.user?.id ?? null;
 
-    const results = await Promise.all(
+    return Promise.all(
       files.map((file) =>
         this.storageService.uploadFile(eventIdNum, parentIdNum, file, userId),
       ),
     );
-
-    return results;
   }
 
   @Get('nodes/:id/thumbnail')
   async serveThumbnail(@Param('id') id: string, @Res() res: Response) {
     const thumbPath = await this.storageService.getThumbnailPath(Number(id));
     return res.sendFile(thumbPath);
+  }
+
+  @Get('nodes/:id/raw')
+  async serveRaw(@Param('id') id: string, @Res() res: Response) {
+    const { absPath, mimeType } = await this.storageService.getFilePath(Number(id));
+    if (mimeType) res.setHeader('Content-Type', mimeType);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    return res.sendFile(absPath);
+  }
+
+  @Get('nodes/:id/download')
+  async downloadFile(@Param('id') id: string, @Res() res: Response) {
+    const { absPath, name } = await this.storageService.getFilePath(Number(id));
+    return res.download(absPath, name);
+  }
+
+  @Patch('nodes/:id/rename')
+  renameNode(
+    @Param('id') id: string,
+    @Body('name') name: string,
+    @Req() req: any,
+  ) {
+    if (!name) throw new BadRequestException('Nome é obrigatório.');
+    return this.storageService.renameNode(Number(id), name, req.user?.id ?? null);
+  }
+
+  @Patch('nodes/:id/move')
+  moveNode(
+    @Param('id') id: string,
+    @Body('targetParentId') targetParentId: number | null,
+    @Body('eventId') eventId: number,
+  ) {
+    if (!eventId) throw new BadRequestException('eventId é obrigatório.');
+    return this.storageService.moveNode(Number(id), targetParentId ?? null, eventId);
+  }
+
+  @Delete('nodes/:id')
+  deleteNode(@Param('id') id: string) {
+    return this.storageService.deleteNode(Number(id));
   }
 }

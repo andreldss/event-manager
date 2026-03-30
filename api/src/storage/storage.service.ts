@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateFolderDto } from './dto/folder/create-folder.dto.js';
@@ -12,6 +13,9 @@ import ffmpeg from 'fluent-ffmpeg';
 
 const THUMBNAIL_SIZE = 400;
 const PAGE_SIZE = 50;
+
+export type SortField = 'name' | 'updatedAt' | 'size';
+export type SortOrder = 'asc' | 'desc';
 
 @Injectable()
 export class StorageService {
@@ -96,34 +100,22 @@ export class StorageService {
     return mimeType.startsWith('video/');
   }
 
-  /**
-   * Gera thumbnail de imagem usando sharp.
-   * O original (buffer) NUNCA é alterado.
-   */
-
   private async generateImageThumbnail(
     buffer: Buffer,
     thumbnailPath: string,
   ): Promise<void> {
     await fs.mkdir(path.dirname(thumbnailPath), { recursive: true });
-
     await sharp(buffer)
       .resize({ width: THUMBNAIL_SIZE, withoutEnlargement: true })
       .jpeg({ quality: 70 })
       .toFile(thumbnailPath);
   }
 
-  /**
-   * Gera thumbnail do primeiro frame de um vídeo usando ffmpeg.
-   * Requer ffmpeg instalado no servidor.
-   */
-
   private async generateVideoThumbnail(
     videoPath: string,
     thumbnailPath: string,
   ): Promise<void> {
     await fs.mkdir(path.dirname(thumbnailPath), { recursive: true });
-
     return new Promise((resolve, reject) => {
       ffmpeg(videoPath)
         .on('error', reject)
@@ -137,14 +129,8 @@ export class StorageService {
     });
   }
 
-  /**
-   * Retorna o storageKey do thumbnail correspondente ao arquivo,
-   * ou null se não for imagem/vídeo.
-   */
-
   private thumbnailKeyFor(storageKey: string, mimeType: string): string | null {
     if (!this.isImage(mimeType) && !this.isVideo(mimeType)) return null;
-    // ex: events/1 - Festa/fotos/img.jpg → _thumbnails/events/1 - Festa/fotos/img.jpg
     return `_thumbnails/${storageKey.replace(/\.[^.]+$/, '.jpg')}`;
   }
 
@@ -187,7 +173,6 @@ export class StorageService {
       : await this.getEventBaseKey(body.eventId);
 
     const storageKey = `${baseKey}/${name}`;
-
     this.storageKeyToAbsPath(storageKey);
 
     const created = await this.prisma.storageNode.create({
@@ -213,18 +198,204 @@ export class StorageService {
     }
   }
 
-  async listFolders(eventId: number, parentId: number | null) {
+  async renameNode(nodeId: number, newName: string, userId: number | null) {
+    const node = await this.prisma.storageNode.findUnique({
+      where: { id: nodeId },
+      select: { id: true, name: true, type: true, storageKey: true, parentId: true, eventId: true },
+    });
+
+    if (!node) throw new NotFoundException('Item não encontrado.');
+
+    const sanitized = node.type === 'folder'
+      ? this.sanitizeName(newName)
+      : this.sanitizeFileName(newName);
+
+    if (!sanitized) throw new BadRequestException('Nome inválido.');
+
+    const parentKey = node.storageKey!.split('/').slice(0, -1).join('/');
+    const newStorageKey = `${parentKey}/${sanitized}`;
+
+    this.storageKeyToAbsPath(newStorageKey);
+
+    const oldPath = this.storageKeyToAbsPath(node.storageKey!);
+    const newPath = this.storageKeyToAbsPath(newStorageKey);
+
+    await this.prisma.storageNode.update({
+      where: { id: nodeId },
+      data: { name: sanitized, storageKey: newStorageKey },
+    });
+
+    try {
+      await fs.rename(oldPath, newPath);
+    } catch {
+      await this.prisma.storageNode.update({
+        where: { id: nodeId },
+        data: { name: node.name, storageKey: node.storageKey! },
+      }).catch(() => { });
+      throw new InternalServerErrorException('Falha ao renomear no disco.');
+    }
+
+    return { id: nodeId, name: sanitized, storageKey: newStorageKey };
+  }
+
+  async deleteNode(nodeId: number) {
+    const node = await this.prisma.storageNode.findUnique({
+      where: { id: nodeId },
+      select: { id: true, storageKey: true, thumbKey: true, type: true },
+    });
+
+    if (!node) throw new NotFoundException('Item não encontrado.');
+
+    const absPath = this.storageKeyToAbsPath(node.storageKey!);
+
+    await this.prisma.storageNode.delete({ where: { id: nodeId } });
+
+    try {
+      if (node.type === 'folder') {
+        await fs.rm(absPath, { recursive: true, force: true });
+      } else {
+        await fs.unlink(absPath).catch(() => { });
+
+        if (node.thumbKey) {
+          const thumbPath = this.storageKeyToAbsPath(
+            node.thumbKey.replace(/^_thumbnails\//, ''),
+            this.thumbnailRoot,
+          );
+          await fs.unlink(thumbPath).catch(() => { });
+        }
+      }
+    } catch { }
+
+    return { deleted: true };
+  }
+
+  async moveNode(nodeId: number, targetParentId: number | null, eventId: number) {
+    const node = await this.prisma.storageNode.findUnique({
+      where: { id: nodeId },
+      select: { id: true, name: true, type: true, storageKey: true, eventId: true },
+    });
+
+    if (!node) throw new NotFoundException('Item não encontrado.');
+    if (node.eventId !== eventId)
+      throw new BadRequestException('Item não pertence a este evento.');
+
+    let targetBaseKey: string;
+
+    if (targetParentId !== null) {
+      if (targetParentId === nodeId)
+        throw new BadRequestException('Não é possível mover uma pasta para ela mesma.');
+
+      const target = await this.prisma.storageNode.findUnique({
+        where: { id: targetParentId },
+        select: { id: true, type: true, storageKey: true, eventId: true },
+      });
+
+      if (!target) throw new BadRequestException('Pasta destino não encontrada.');
+      if (target.type !== 'folder')
+        throw new BadRequestException('Destino precisa ser uma pasta.');
+      if (target.eventId !== eventId)
+        throw new BadRequestException('Pasta destino não pertence a este evento.');
+
+      targetBaseKey = target.storageKey!;
+    } else {
+      targetBaseKey = await this.getEventBaseKey(eventId);
+    }
+
+    const newStorageKey = `${targetBaseKey}/${node.name}`;
+    this.storageKeyToAbsPath(newStorageKey);
+
+    const oldPath = this.storageKeyToAbsPath(node.storageKey!);
+    const newPath = this.storageKeyToAbsPath(newStorageKey);
+
+    await this.prisma.storageNode.update({
+      where: { id: nodeId },
+      data: { parentId: targetParentId, storageKey: newStorageKey },
+    });
+
+    try {
+      await fs.rename(oldPath, newPath);
+    } catch {
+      await this.prisma.storageNode.update({
+        where: { id: nodeId },
+        data: { parentId: node.eventId, storageKey: node.storageKey! },
+      }).catch(() => { });
+      throw new InternalServerErrorException('Falha ao mover no disco.');
+    }
+
+    return { id: nodeId, storageKey: newStorageKey };
+  }
+
+  async listAllFolders(eventId: number) {
     return this.prisma.storageNode.findMany({
-      where: { eventId, parentId, type: 'folder' },
-      orderBy: { name: 'asc' },
+      where: { eventId, type: 'folder' },
+      orderBy: [{ parentId: 'asc' }, { name: 'asc' }],
+      select: { id: true, name: true, parentId: true },
+    });
+  }
+
+  async listItems(
+    eventId: number,
+    parentId: number | null,
+    cursor?: number,
+    sortField: SortField = 'name',
+    sortOrder: SortOrder = 'asc',
+  ) {
+    const orderBy: any[] = [
+      { type: 'asc' },
+    ];
+
+    if (sortField === 'name') {
+      orderBy.push({ name: sortOrder });
+    } else if (sortField === 'updatedAt') {
+      orderBy.push({ updatedAt: sortOrder });
+    } else if (sortField === 'size') {
+      orderBy.push({ size: sortOrder });
+    }
+
+    orderBy.push({ id: 'asc' });
+
+    const items = await this.prisma.storageNode.findMany({
+      where: { eventId, parentId },
+      orderBy,
+      take: PAGE_SIZE + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: {
         id: true,
         name: true,
+        type: true,
         eventId: true,
         parentId: true,
         updatedAt: true,
+        mimeType: true,
+        size: true,
+        thumbKey: true,
+        _count: { select: { children: true } },
       },
     });
+
+    const hasMore = items.length > PAGE_SIZE;
+    const data = hasMore ? items.slice(0, PAGE_SIZE) : items;
+    const nextCursor = hasMore ? data[data.length - 1].id : null;
+
+    return { data, nextCursor, hasMore };
+  }
+
+  async getBreadcrumb(folderId: number): Promise<{ id: number; name: string }[]> {
+    const crumbs: { id: number; name: string }[] = [];
+    let currentId: number | null = folderId;
+
+    while (currentId !== null) {
+      const node = await this.prisma.storageNode.findUnique({
+        where: { id: currentId },
+        select: { id: true, name: true, parentId: true },
+      });
+
+      if (!node) break;
+      crumbs.unshift({ id: node.id, name: node.name });
+      currentId = node.parentId;
+    }
+
+    return crumbs;
   }
 
   async uploadFile(
@@ -314,47 +485,11 @@ export class StorageService {
       if (this.isImage(mimeType)) {
         this.generateImageThumbnail(file.buffer, thumbnailPath).catch(() => { });
       } else if (this.isVideo(mimeType)) {
-        // O vídeo já está no disco neste ponto
         this.generateVideoThumbnail(filePath, thumbnailPath).catch(() => { });
       }
     }
 
     return created;
-  }
-
-  async listItems(
-    eventId: number,
-    parentId: number | null,
-    cursor?: number,
-  ) {
-    const items = await this.prisma.storageNode.findMany({
-      where: { eventId, parentId },
-      orderBy: [{ type: 'asc' }, { name: 'asc' }, { id: 'asc' }],
-      take: PAGE_SIZE + 1,
-      ...(cursor
-        ? {
-          cursor: { id: cursor },
-          skip: 1,
-        }
-        : {}),
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        eventId: true,
-        parentId: true,
-        updatedAt: true,
-        mimeType: true,
-        size: true,
-        thumbKey: true,
-      },
-    });
-
-    const hasMore = items.length > PAGE_SIZE;
-    const data = hasMore ? items.slice(0, PAGE_SIZE) : items;
-    const nextCursor = hasMore ? data[data.length - 1].id : null;
-
-    return { data, nextCursor, hasMore };
   }
 
   async getThumbnailPath(nodeId: number): Promise<string> {
@@ -363,9 +498,8 @@ export class StorageService {
       select: { thumbKey: true },
     });
 
-    if (!node?.thumbKey) {
+    if (!node?.thumbKey)
       throw new BadRequestException('Este item não possui thumbnail.');
-    }
 
     const thumbPath = this.storageKeyToAbsPath(
       node.thumbKey.replace(/^_thumbnails\//, ''),
@@ -379,5 +513,25 @@ export class StorageService {
     }
 
     return thumbPath;
+  }
+
+  async getFilePath(nodeId: number): Promise<{ absPath: string; name: string; mimeType: string | null }> {
+    const node = await this.prisma.storageNode.findUnique({
+      where: { id: nodeId },
+      select: { storageKey: true, name: true, mimeType: true, type: true },
+    });
+
+    if (!node) throw new NotFoundException('Arquivo não encontrado.');
+    if (node.type !== 'file') throw new BadRequestException('Este item não é um arquivo.');
+
+    const absPath = this.storageKeyToAbsPath(node.storageKey!);
+
+    try {
+      await fs.access(absPath);
+    } catch {
+      throw new NotFoundException('Arquivo não encontrado no disco.');
+    }
+
+    return { absPath, name: node.name, mimeType: node.mimeType };
   }
 }

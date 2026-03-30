@@ -1,74 +1,58 @@
 "use client";
 
-import { Folder, MoreVertical } from "lucide-react";
-
-type FolderCardProps = {
+type Props = {
   name: string;
-  itemsCount?: number;
-  updatedAt?: string | Date;
-  readonly?: boolean;
+  updatedAt?: string;
   onOpen: () => void;
-  onMenuClick?: () => void;
 };
 
-export default function FolderCard({
-  name,
-  itemsCount,
-  updatedAt,
-  readonly,
-  onOpen,
-  onMenuClick,
-}: FolderCardProps) {
-  const updated = updatedAt
-    ? (typeof updatedAt === "string"
-        ? new Date(updatedAt)
-        : updatedAt
-      ).toLocaleDateString("pt-BR")
-    : null;
+function formatDate(date?: string) {
+  if (!date) return "";
 
+  return new Date(date).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
+}
+
+export default function FolderCard({ name, updatedAt, onOpen }: Props) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onDoubleClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") onOpen();
-      }}
-      className="group w-full cursor-pointer rounded-lg border bg-white px-4 py-3 text-left shadow-sm hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full cursor-pointer rounded-xl border border-gray-200 bg-white px-4 py-4 text-left shadow-sm transition-all hover:shadow-md"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Folder className="h-5 w-5 text-gray-600" />
-
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-background">
-              {name}
-            </p>
-
-            {(typeof itemsCount === "number" || updated) && (
-              <p className="mt-0.5 text-xs text-gray-500">
-                {typeof itemsCount === "number" ? `${itemsCount} itens` : null}
-                {typeof itemsCount === "number" && updated ? " • " : null}
-                {updated ? `Atualizado ${updated}` : null}
-              </p>
-            )}
-          </div>
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 shrink-0 text-gray-400">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-9 w-9"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.7}
+              d="M3 7.5A2.5 2.5 0 015.5 5H9l2 2h7.5A2.5 2.5 0 0121 9.5v7A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-9z"
+            />
+          </svg>
         </div>
 
-        {!readonly && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMenuClick?.();
-            }}
-            className="rounded-md p-2 opacity-0 transition hover:bg-gray-100 group-hover:opacity-100"
-            aria-label="Ações"
-          >
-            <MoreVertical className="h-4 w-4 text-gray-600 cursor-pointer active:opacity-90" />
-          </button>
-        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium leading-snug text-gray-800">
+            {name}
+          </p>
+
+          {updatedAt && (
+            <p className="mt-1 text-xs text-gray-400">
+              Atualizado em {formatDate(updatedAt)}
+            </p>
+          )}
+        </div>
       </div>
-    </div>
+    </button>
   );
 }
