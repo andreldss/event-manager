@@ -1,122 +1,110 @@
+"use client";
+
 import { apiFetch } from "@/lib/api";
 import { EventGroup } from "@/types/group";
 import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 
-type OverviewGroupsProps = {
-    eventId: number;
-    groups: EventGroup[];
-    onGroupsChanged: () => Promise<void>;
+type Props = {
+  eventId: number;
+  groups: EventGroup[];
+  onGroupsChanged: () => Promise<void>;
 };
 
 export default function OverviewGroups({
-    eventId,
-    groups,
-    onGroupsChanged,
-}: OverviewGroupsProps) {
-    const [newGroupText, setNewGroupText] = useState("");
-    const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
+  eventId,
+  groups,
+  onGroupsChanged,
+}: Props) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-    async function addGroupItem() {
-        if (loading) return;
-
-        setError("");
-        setLoading(true);
-
-        const text = newGroupText.trim();
-
-        if (!text) {
-            setError("Texto do grupo não pode ser vazio.");
-            setLoading(false);
-            return;
-        }
-
-        try {
-            await apiFetch(`/events/${eventId}/group`, "POST", { text });
-            setNewGroupText("");
-            await onGroupsChanged();
-        } catch (err) {
-            if (err instanceof Error) setError(err.message);
-            else setError("Falha ao criar grupo.");
-        } finally {
-            setLoading(false);
-        }
+  async function add() {
+    if (loading || !text.trim()) return;
+    setLoading(true);
+    setError("");
+    try {
+      await apiFetch(`/events/${eventId}/group`, "POST", { text: text.trim() });
+      setText("");
+      await onGroupsChanged();
+    } catch {
+      setError("Falha ao criar grupo.");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    async function removeGroupItem(id: number) {
-        if (loading) return;
-
-        setError("");
-        setLoading(true);
-
-        try {
-            await apiFetch(`/events/${eventId}/group/${id}`, "DELETE");
-            await onGroupsChanged();
-        } catch (err) {
-            if (err instanceof Error) setError(err.message);
-            else setError("Falha ao remover grupo.");
-        } finally {
-            setLoading(false);
-        }
+  async function remove(id: number) {
+    if (loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      await apiFetch(`/events/${eventId}/group/${id}`, "DELETE");
+      await onGroupsChanged();
+    } catch {
+      setError("Falha ao remover.");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    return (
-        <div className="flex flex-col min-h-0 flex-[1] border rounded-2xl bg-white overflow-hidden">
-            <div className="p-4 border-b flex items-center gap-3 justify-center">
-                <input
-                    value={newGroupText}
-                    onChange={(e) => setNewGroupText(e.target.value)}
-                    placeholder="Novo grupo. Ex: 301, 302"
-                    className="px-3 py-2 rounded-xl border bg-white text-sm outline-none focus:ring-2 focus:ring-gray-200"
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") addGroupItem();
-                    }}
-                />
+  return (
+    <div className="flex flex-col gap-3 flex-[1] min-h-0">
+      <div className="flex gap-2">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && add()}
+          placeholder="Ex: 301, 302..."
+          className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-slate-200 transition"
+        />
+        <button
+          onClick={add}
+          disabled={loading}
+          className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center hover:bg-slate-700 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
 
-                <button
-                    type="button"
-                    onClick={addGroupItem}
-                    disabled={loading}
-                    className="px-3 py-2 rounded-xl text-sm font-medium bg-background text-white hover:opacity-90 transition cursor-pointer active:opacity-80 disabled:opacity-60"
-                >
-                    + Grupo
-                </button>
-            </div>
-
-            <div className="flex-1 min-h-0 overflow-auto px-2 text-sm text-gray-600">
-                {error && (
-                    <div className="border border-red-300 bg-red-50 text-red-700 px-4 py-2 rounded-lg m-4">
-                        {error}
-                    </div>
-                )}
-
-                {groups.length === 0 ? (
-                    <div className="px-4 py-3 flex items-center gap-3 w-full">
-                        Ainda não há registros de grupos.
-                    </div>
-                ) : (
-                    groups.map((item) => (
-                        <div
-                            key={item.id}
-                            className="px-4 py-3 flex items-center gap-3 w-full justify-between"
-                        >
-                            <div className="flex items-center gap-3 min-w-0">
-                                <p className="text-sm text-background break-words">
-                                    {item.text}
-                                </p>
-                            </div>
-
-                            <button
-                                onClick={() => removeGroupItem(item.id)}
-                                disabled={loading}
-                                className="px-3 py-2 rounded-xl text-sm bg-gray-100 hover:bg-gray-200 transition cursor-pointer disabled:opacity-60"
-                            >
-                                X
-                            </button>
-                        </div>
-                    ))
-                )}
-            </div>
+      <div className="flex-1 min-h-0 rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col">
+        <div className="px-4 pt-3 pb-2 border-b border-slate-100">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+            Grupos {groups.length > 0 && `· ${groups.length}`}
+          </span>
         </div>
-    );
+
+        <div className="flex-1 overflow-auto">
+          {error && (
+            <p className="mx-4 mt-3 text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+
+          {groups.length === 0 && (
+            <p className="px-4 py-4 text-sm text-slate-400">
+              Nenhum grupo ainda.
+            </p>
+          )}
+
+          {groups.map((item) => (
+            <div
+              key={item.id}
+              className="group px-4 py-3 flex items-center justify-between border-b border-slate-50 last:border-0 hover:bg-slate-50/60 transition"
+            >
+              <span className="text-sm text-slate-700">{item.text}</span>
+              <button
+                onClick={() => remove(item.id)}
+                disabled={loading}
+                className="opacity-0 group-hover:opacity-100 transition p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 disabled:opacity-30 cursor-pointer"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }

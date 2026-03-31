@@ -74,7 +74,7 @@ export default function CreateFolderModal({
         }}
       />
 
-      <div className="relative w-[560px] max-w-[92vw] bg-white rounded-xl shadow-lg border p-5">
+      <div className="relative w-[560px] max-w-[92vw] bg-white rounded-xl shadow-lg p-5">
         <div className="flex items-center justify-between gap-3 mb-4">
           <h2 className="text-lg font-bold text-background">Nova pasta</h2>
 

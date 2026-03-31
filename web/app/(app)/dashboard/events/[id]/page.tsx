@@ -11,16 +11,7 @@ import Tab from "@/components/dashboard/events/tab";
 import FinancialTab from "@/components/dashboard/events/financial/financial-tab";
 import AttachmentsTab from "@/components/dashboard/events/storage/attachments-tab";
 import { EventGroup } from "@/types/group";
-
-type Event = {
-  id: string;
-  name: string;
-  status: string;
-  clientName: string | null;
-  date: string | null;
-  location: string | null;
-  type: "simple" | "collective";
-};
+import { Event } from "@/types/event";
 
 type TabKey = "overview" | "finance" | "collections" | "attachments";
 
@@ -41,16 +32,16 @@ export default function EventPage() {
   }
 
   async function loadGroups() {
-    setError('');
+    setError("");
     setGroupsLoading(true);
 
     try {
-      const response = await apiFetch(`/events/${id}/group`, 'GET');
+      const response = await apiFetch(`/events/${id}/group`, "GET");
       setGroups(Array.isArray(response) ? response : []);
-      console.log(groups)
+      console.log(groups);
     } catch (err) {
       if (err instanceof Error) setError(err.message);
-      else setError('Falha ao carregar grupos.');
+      else setError("Falha ao carregar grupos.");
       setGroups([]);
     } finally {
       setGroupsLoading(false);
@@ -84,7 +75,8 @@ export default function EventPage() {
   }
 
   useEffect(() => {
-    if (id) loadEvent(); loadGroups();
+    if (id) loadEvent();
+    loadGroups();
   }, [id]);
 
   useEffect(() => {
@@ -113,8 +105,6 @@ export default function EventPage() {
 
   return (
     <div className="flex flex-col gap-6 h-full min-h-0">
-      <EventHeader event={event} />
-
       <div className="bg-white rounded-xl flex flex-col flex-1 min-h-0">
         <div className="flex flex-wrap gap-2 p-3">
           <Tab
@@ -148,6 +138,7 @@ export default function EventPage() {
               groups={groups}
               onGroupsChanged={loadGroups}
               financialRefreshTrigger={financialRefreshTrigger}
+              event={event}
             />
           </div>
 
@@ -164,19 +155,14 @@ export default function EventPage() {
                 activeTab === "collections" ? "block h-full" : "hidden"
               }
             >
-              <CollectionsTab
-                eventId={Number(event.id)}
-                groups={groups}
-              />
+              <CollectionsTab eventId={Number(event.id)} groups={groups} />
             </div>
           ) : null}
 
           <div
             className={activeTab === "attachments" ? "block h-full" : "hidden"}
           >
-            <AttachmentsTab
-              eventId={Number(event.id)}
-            />
+            <AttachmentsTab eventId={Number(event.id)} />
           </div>
         </div>
       </div>
