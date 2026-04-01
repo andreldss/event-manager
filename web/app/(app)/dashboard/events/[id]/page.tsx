@@ -146,6 +146,7 @@ export default function EventPage() {
             <FinancialTab
               eventId={Number(event.id)}
               onFinancialChanged={handleFinancialChanged}
+              financialRefreshTrigger={financialRefreshTrigger}
             />
           </div>
 
@@ -155,7 +156,11 @@ export default function EventPage() {
                 activeTab === "collections" ? "block h-full" : "hidden"
               }
             >
-              <CollectionsTab eventId={Number(event.id)} groups={groups} />
+              <CollectionsTab
+                eventId={Number(event.id)}
+                groups={groups}
+                onCollectionsFinancialChanged={handleFinancialChanged}
+              />
             </div>
           ) : null}
 

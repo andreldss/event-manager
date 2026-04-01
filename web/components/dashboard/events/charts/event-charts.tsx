@@ -99,7 +99,7 @@ export function EventChart({
   }, [eventId, financialRefreshTrigger]);
 
   return (
-    <div className="flex h-full min-h-[360px] min-w-0 flex-col rounded-2xl border bg-white p-6">
+    <div className="flex h-full min-h-[360px] min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-gray-900">
@@ -110,19 +110,19 @@ export function EventChart({
       </div>
 
       {error ? (
-        <div className="rounded-2xl border bg-gray-50 p-4 text-sm text-gray-700">
+        <div className="rounded-2xl border border-slate-200 bg-gray-50 p-4 text-sm text-gray-700">
           {error}
         </div>
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-2xl border bg-gray-50 p-4 text-sm text-gray-700">
+        <div className="rounded-2xl border border-slate-200 bg-gray-50 p-4 text-sm text-gray-700">
           Carregando gráfico...
         </div>
       ) : null}
 
       {!isLoading && !error && data.length === 0 ? (
-        <div className="rounded-2xl border bg-gray-50 p-4 text-sm text-gray-700">
+        <div className="rounded-2xl border border-slate-200 bg-gray-50 p-4 text-sm text-gray-700">
           Nenhum dado encontrado.
         </div>
       ) : null}

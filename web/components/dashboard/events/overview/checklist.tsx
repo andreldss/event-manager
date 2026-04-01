@@ -20,6 +20,8 @@ export default function OverviewChecklist({ eventId }: { eventId: number }) {
 
   async function load() {
     setLoading(true);
+    setError("");
+
     try {
       const r = await apiFetch(`/events/${eventId}/checklist`, "GET");
       setItems(Array.isArray(r) ? r : []);
@@ -32,31 +34,36 @@ export default function OverviewChecklist({ eventId }: { eventId: number }) {
 
   async function add() {
     if (loading || !text.trim()) return;
+
     setLoading(true);
+    setError("");
+
     try {
       await apiFetch(`/events/${eventId}/checklist`, "POST", {
         text: text.trim(),
         date,
       });
+
       setText("");
       setDate("");
-      load();
+      await load();
     } catch {
       setError("Falha ao criar.");
-    } finally {
       setLoading(false);
     }
   }
 
   async function remove(id: string) {
     if (loading) return;
+
     setLoading(true);
+    setError("");
+
     try {
       await apiFetch(`/events/${eventId}/checklist/${id}`, "DELETE");
-      load();
+      await load();
     } catch {
       setError("Falha ao remover.");
-    } finally {
       setLoading(false);
     }
   }
@@ -64,7 +71,7 @@ export default function OverviewChecklist({ eventId }: { eventId: number }) {
   async function toggle(id: string) {
     try {
       await apiFetch(`/events/${eventId}/checklist/${id}/done`, "PATCH");
-      load();
+      await load();
     } catch {
       setError("Falha ao atualizar.");
     }
@@ -75,84 +82,101 @@ export default function OverviewChecklist({ eventId }: { eventId: number }) {
   }, [eventId]);
 
   const done = items.filter((i) => i.done).length;
+  const progress = items.length ? (done / items.length) * 100 : 0;
 
   return (
-    <div className="flex flex-col gap-3 flex-[2] min-h-0">
-      <div className="flex flex-col gap-2">
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
-          placeholder="Novo item..."
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-slate-200 transition"
-        />
-        <div className="flex gap-2">
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 transition"
-          />
-          <button
-            onClick={add}
-            className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center hover:bg-slate-700 transition active:scale-95 cursor-pointer disabled:opacity-50"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 min-h-0 rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col">
-        {items.length > 0 && (
-          <div className="px-4 pt-3 pb-2 border-b border-slate-100">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+    <div className="flex min-h-0 flex-[2] flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-100 px-4 pt-4 pb-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
                 Checklist
-              </span>
-              <span className="text-[11px] text-slate-400">
-                {done}/{items.length}
-              </span>
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {items.length > 0
+                  ? `${done} de ${items.length} concluídos`
+                  : "Organize as tarefas principais do evento"}
+              </p>
             </div>
-            <div className="h-1 w-full rounded-full bg-slate-100">
-              <div
-                className="h-1 rounded-full bg-slate-800 transition-all duration-300"
-                style={{
-                  width: `${items.length ? (done / items.length) * 100 : 0}%`,
-                }}
+
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-500">
+              {done}/{items.length}
+            </span>
+          </div>
+
+          <div className="mb-3 h-1.5 w-full rounded-full bg-slate-100">
+            <div
+              className="h-1.5 rounded-full bg-slate-800 transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && add()}
+              placeholder="Novo item..."
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:ring-2 focus:ring-slate-200"
+            />
+
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:ring-2 focus:ring-slate-200"
               />
+
+              <button
+                onClick={add}
+                disabled={loading}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white transition hover:bg-slate-700 active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                <Plus size={16} />
+              </button>
             </div>
           </div>
-        )}
+        </div>
 
         <div className="flex-1 overflow-auto">
           {error && (
-            <p className="mx-4 mt-3 text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2">
+            <p className="mx-4 mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600">
               {error}
             </p>
           )}
 
           {items.length === 0 && !loading && (
-            <p className="px-4 py-4 text-sm text-slate-400">
-              Nenhum item ainda.
-            </p>
+            <div className="px-4 py-5">
+              <p className="text-sm text-slate-500">Nenhum item ainda.</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Adicione tarefas, prazos e pendências para acompanhar melhor o
+                evento.
+              </p>
+            </div>
           )}
 
           {items.map((item) => (
             <div
               key={item.id}
-              className="group px-4 py-3 flex items-center gap-3 border-b border-slate-50 last:border-0 hover:bg-slate-50/60 transition"
+              className="group flex items-center gap-3 border-b border-slate-50 px-4 py-3 transition last:border-0 hover:bg-slate-50/60"
             >
               <input
                 type="checkbox"
                 checked={!!item.done}
                 onChange={() => toggle(item.id)}
-                className="w-4 h-4 rounded cursor-pointer accent-slate-800"
+                className="h-4 w-4 cursor-pointer rounded accent-slate-800"
               />
+
               <span
-                className={`flex-1 text-sm text-slate-700 break-words min-w-0 ${item.done ? "line-through text-slate-400" : ""}`}
+                className={`min-w-0 flex-1 break-words text-sm ${
+                  item.done ? "text-slate-400 line-through" : "text-slate-700"
+                }`}
               >
                 {item.text}
               </span>
+
               {item.date && (
                 <span className="shrink-0 text-xs text-slate-400">
                   {new Date(item.date).toLocaleDateString("pt-BR", {
@@ -160,9 +184,10 @@ export default function OverviewChecklist({ eventId }: { eventId: number }) {
                   })}
                 </span>
               )}
+
               <button
                 onClick={() => remove(item.id)}
-                className="opacity-0 group-hover:opacity-100 transition p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 cursor-pointer"
+                className="rounded-lg p-1 text-slate-400 opacity-40 transition hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100 cursor-pointer"
               >
                 <Trash2 size={13} />
               </button>

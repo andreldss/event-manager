@@ -45,18 +45,15 @@ export default function CreateTransactionModal({
     setCategoryId(null);
     setCategoryOpen(false);
     setCategoryQuery("");
-
     setError("");
     setLoading(false);
   }
 
   async function fetchCategories() {
-    setError("");
-
     try {
       const response = await apiFetch("/financial-category", "GET");
       setCategories(Array.isArray(response) ? response : []);
-    } catch (err) {
+    } catch {
       setCategories([]);
     }
   }
@@ -64,7 +61,6 @@ export default function CreateTransactionModal({
   const filteredCategories = useMemo(() => {
     const q = categoryQuery.trim().toLowerCase();
     if (!q) return categories;
-
     return categories.filter((c) => (c.name || "").toLowerCase().includes(q));
   }, [categories, categoryQuery]);
 
@@ -78,8 +74,8 @@ export default function CreateTransactionModal({
     if (!raw) return null;
 
     const n = Number(raw);
-    if (Number.isNaN(n)) return null;
-    if (n <= 0) return null;
+    if (Number.isNaN(n) || n <= 0) return null;
+
     return n;
   }
 
@@ -89,20 +85,9 @@ export default function CreateTransactionModal({
     const desc = description.trim();
     const parsed = parseMoney(amount);
 
-    if (!desc) {
-      setError("Descrição obrigatória.");
-      return;
-    }
-
-    if (parsed === null) {
-      setError("Valor inválido.");
-      return;
-    }
-
-    if (!categoryId) {
-      setError("Selecione uma categoria.");
-      return;
-    }
+    if (!desc) return setError("Descrição obrigatória.");
+    if (parsed === null) return setError("Valor inválido.");
+    if (!categoryId) return setError("Selecione uma categoria.");
 
     setLoading(true);
     setError("");
@@ -127,7 +112,7 @@ export default function CreateTransactionModal({
 
       setDefaults();
       onClose();
-      if (onCreated) onCreated();
+      onCreated?.();
     } catch (err) {
       if (err instanceof Error) setError(err.message);
       else setError("Falha ao criar movimentação.");
@@ -137,9 +122,7 @@ export default function CreateTransactionModal({
   }
 
   useEffect(() => {
-    if (open) {
-      fetchCategories();
-    }
+    if (open) fetchCategories();
   }, [open]);
 
   if (!open) return null;
@@ -154,9 +137,9 @@ export default function CreateTransactionModal({
         }}
       />
 
-      <div className="relative w-[560px] max-w-[92vw] bg-white rounded-xl shadow-lg border p-5">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 className="text-lg font-bold text-background">
+      <div className="relative w-[560px] max-w-[92vw] rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">
             Nova movimentação
           </h2>
 
@@ -165,54 +148,59 @@ export default function CreateTransactionModal({
               if (!loading) setDefaults();
               onClose();
             }}
-            className="p-1 rounded hover:bg-gray-100 transition"
-            aria-label="Fechar"
+            className="rounded p-1 text-slate-500 hover:bg-slate-100 cursor-pointer transition"
           >
             <X />
           </button>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <div className="flex gap-2">
             <button
-              type="button"
               onClick={() => setType("income")}
-              className={`flex-1 cursor-pointer py-2 rounded-lg border font-semibold transition ${type === "income" ? "bg-green-100 border-green-300" : "bg-white hover:bg-gray-50"}`}
-              disabled={loading}
+              className={`flex-1 rounded-xl border py-2 text-sm font-semibold transition cursor-pointer ${
+                type === "income"
+                  ? "bg-slate-900 text-white border-slate-900"
+                  : "bg-white text-slate-600 hover:bg-slate-50"
+              }`}
             >
               Entrada
             </button>
 
             <button
-              type="button"
               onClick={() => setType("expense")}
-              className={`flex-1 cursor-pointer py-2 rounded-lg border font-semibold transition ${type === "expense" ? "bg-red-100 border-red-300" : "bg-white hover:bg-gray-50"}`}
-              disabled={loading}
+              className={`flex-1 rounded-xl border py-2 text-sm font-semibold transition cursor-pointer ${
+                type === "expense"
+                  ? "bg-slate-900 text-white border-slate-900"
+                  : "bg-white text-slate-600 hover:bg-slate-50"
+              }`}
             >
               Saída
             </button>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <span className="text-sm text-background">Descrição</span>
+          <div>
+            <label className="text-sm text-slate-600">Descrição</label>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="px-4 py-2 border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200"
-              placeholder={type === 'income' ? "Ex: Pagamento parcela, recebimento" : "Ex: DJ, iluminação, aluguel do salão..."}
-              disabled={loading}
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
+              placeholder={
+                type === "income"
+                  ? "Ex: pagamento recebido"
+                  : "Ex: fornecedor, estrutura..."
+              }
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <span className="text-sm text-background">Valor</span>
+          <div>
+            <label className="text-sm text-slate-600">Valor</label>
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="px-4 py-2 border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
               placeholder="0,00"
               inputMode="decimal"
-              disabled={loading}
             />
           </div>
 
@@ -221,10 +209,9 @@ export default function CreateTransactionModal({
             tabIndex={0}
             onBlur={() => setCategoryOpen(false)}
           >
-            <span className="text-sm text-background">Categoria*</span>
+            <label className="text-sm text-slate-600">Categoria</label>
 
             <input
-              type="text"
               value={
                 categoryOpen
                   ? categoryQuery
@@ -235,28 +222,21 @@ export default function CreateTransactionModal({
                 setCategoryQuery(e.target.value);
                 setCategoryOpen(true);
               }}
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
               placeholder="Selecione uma categoria..."
-              className="mt-1 w-full px-4 py-2 border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200"
-              disabled={loading}
             />
 
             {categoryOpen && (
-              <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto bg-white border rounded-lg shadow">
-                {filteredCategories.length === 0 && (
-                  <div className="px-4 py-2 text-sm text-gray-500">
-                    Selecione uma categoria válida.
-                  </div>
-                )}
-
+              <div className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
                 {filteredCategories.map((c) => (
                   <div
                     key={c.id}
-                    className="px-4 py-2 cursor-pointer hover:bg-gray-100"
                     onMouseDown={() => {
                       setCategoryId(c.id);
-                      setCategoryQuery("");
                       setCategoryOpen(false);
+                      setCategoryQuery("");
                     }}
+                    className="cursor-pointer px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                   >
                     {c.name}
                   </div>
@@ -265,70 +245,63 @@ export default function CreateTransactionModal({
             )}
           </div>
 
-          {type === "expense" ? (
+          {type === "expense" && (
             <>
               <div className="flex gap-2">
                 <button
-                  type="button"
-                  onClick={() => {
-                    setStatus("settled");
-                  }}
-                  className={`flex-1 cursor-pointer py-2 rounded-lg border font-semibold transition ${status === "settled" ? "bg-background text-white" : "bg-white hover:bg-gray-50 text-background"}`}
-                  disabled={loading}
+                  onClick={() => setStatus("settled")}
+                  className={`flex-1 rounded-xl border py-2 text-sm font-semibold cursor-pointer ${
+                    status === "settled"
+                      ? "bg-slate-900 text-white"
+                      : "bg-white text-slate-600"
+                  }`}
                 >
                   Pago
                 </button>
 
                 <button
-                  type="button"
                   onClick={() => {
                     setStatus("planned");
                     setPaidAt("");
                   }}
-                  className={`flex-1 cursor-pointer py-2 rounded-lg border font-semibold transition ${status === "planned" ? "bg-background text-white" : "bg-white hover:bg-gray-50 text-background"}`}
-                  disabled={loading}
+                  className={`flex-1 rounded-xl border py-2 text-sm font-semibold cursor-pointer ${
+                    status === "planned"
+                      ? "bg-slate-900 text-white"
+                      : "bg-white text-slate-600"
+                  }`}
                 >
                   Agendado
                 </button>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <span className="text-sm text-background">Data (opcional)</span>
-                <input
-                  type="date"
-                  value={paidAt}
-                  onChange={(e) => setPaidAt(e.target.value)}
-                  className={`px-4 py-2 border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 ${status === "planned" ? "opacity-50" : ""}`}
-                  disabled={loading || status === "planned"}
-                />
-              </div>
+              <input
+                type="date"
+                value={paidAt}
+                onChange={(e) => setPaidAt(e.target.value)}
+                disabled={status === "planned"}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200 disabled:opacity-50"
+              />
             </>
-          ) : null}
+          )}
 
-          {error ? (
-            <div className="text-sm text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
+          {error && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
               {error}
             </div>
-          ) : null}
+          )}
 
-          <div className="flex justify-center gap-2 mt-2">
+          <div className="mt-2 flex justify-end gap-2">
             <button
-              type="button"
-              onClick={() => {
-                if (!loading) setDefaults();
-                onClose();
-              }}
-              className="px-4 py-2 cursor-pointer rounded-lg border bg-white hover:bg-gray-50 font-semibold transition"
-              disabled={loading}
+              onClick={onClose}
+              className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-slate-50 cursor-pointer"
             >
               Cancelar
             </button>
 
             <button
-              type="button"
               onClick={createTransaction}
-              className="px-4 py-2 cursor-pointer rounded-lg bg-background text-white hover:opacity-90 font-semibold transition disabled:opacity-60"
               disabled={loading}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 cursor-pointer"
             >
               {loading ? "Salvando..." : "Salvar"}
             </button>

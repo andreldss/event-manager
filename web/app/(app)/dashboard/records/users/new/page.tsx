@@ -4,10 +4,12 @@ import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export default function NewClient() {
-  const [clientName, setClientName] = useState("");
-  const [clientPhone, setClientPhone] = useState("");
-  const [clientNotes, setClientNotes] = useState("");
+export default function NewUser() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -20,18 +22,19 @@ export default function NewClient() {
     setError("");
 
     try {
-      await apiFetch("/clients", "POST", {
-        name: clientName,
-        phone: clientPhone,
-        notes: clientNotes,
+      await apiFetch("/users", "POST", {
+        name,
+        email,
+        password,
+        isAdmin,
       });
 
-      router.push("/dashboard/records/clients");
+      router.push("/dashboard/records/users");
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Falha ao cadastrar cliente. Tente novamente.");
+        setError("Falha ao cadastrar usuário.");
       }
     } finally {
       setLoading(false);
@@ -46,48 +49,65 @@ export default function NewClient() {
             Cadastros
           </p>
           <h2 className="mt-1 text-lg font-semibold text-slate-900">
-            Novo cliente
+            Novo usuário
           </h2>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="flex flex-col gap-4 md:col-span-1">
+            <div className="flex flex-col gap-4">
               <div>
-                <label className="text-sm text-slate-600">
-                  Nome do cliente*
-                </label>
+                <label className="text-sm text-slate-600">Nome*</label>
                 <input
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   required
-                  placeholder="Ex: Colégio Dehon"
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-slate-600">Telefone</label>
+                <label className="text-sm text-slate-600">E-mail*</label>
                 <input
-                  type="tel"
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  placeholder="Ex: (48) 9 9999-0000"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
                 />
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 md:col-span-1">
+            <div className="flex flex-col gap-4">
               <div>
-                <label className="text-sm text-slate-600">Observações</label>
-                <textarea
-                  value={clientNotes}
-                  onChange={(e) => setClientNotes(e.target.value)}
-                  rows={6}
-                  className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
+                <label className="text-sm text-slate-600">Senha*</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
                 />
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <label className="flex cursor-pointer items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">
+                      Administrador
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Permite acesso administrativo no sistema.
+                    </p>
+                  </div>
+
+                  <input
+                    type="checkbox"
+                    checked={isAdmin}
+                    onChange={(e) => setIsAdmin(e.target.checked)}
+                    className="h-4 w-4 cursor-pointer accent-slate-800"
+                  />
+                </label>
               </div>
             </div>
           </div>
@@ -101,7 +121,7 @@ export default function NewClient() {
           <div className="flex justify-center gap-2 pt-2">
             <button
               type="button"
-              onClick={() => router.push("/dashboard/records/clients")}
+              onClick={() => router.push("/dashboard/records/users")}
               className="cursor-pointer rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-slate-50"
             >
               Cancelar

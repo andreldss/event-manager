@@ -60,9 +60,14 @@ function monthLabelPtBrWithYear(monthKey: string) {
 type Props = {
   eventId: number;
   groups: EventGroup[];
+  onCollectionsFinancialChanged: () => void;
 };
 
-export default function CollectionsTab({ eventId, groups }: Props) {
+export default function CollectionsTab({
+  eventId,
+  groups,
+  onCollectionsFinancialChanged,
+}: Props) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | "all">("all");
 
@@ -150,6 +155,8 @@ export default function CollectionsTab({ eventId, groups }: Props) {
         referenceMonth: monthKey,
         amount: parsed ?? 0,
       });
+
+      onCollectionsFinancialChanged();
     } catch (err) {
       if (err instanceof Error) setError(err.message);
       else setError("Falha ao salvar recolhimento.");
@@ -240,11 +247,11 @@ export default function CollectionsTab({ eventId, groups }: Props) {
 
       const months: PaymentMonth[] = Array.isArray(data)
         ? data
-          .filter(
-            (m) => typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m),
-          )
-          .slice()
-          .sort((a, b) => a.localeCompare(b))
+            .filter(
+              (m) => typeof m === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(m),
+            )
+            .slice()
+            .sort((a, b) => a.localeCompare(b))
         : [];
 
       setPaymentMonths(months);
@@ -406,7 +413,7 @@ export default function CollectionsTab({ eventId, groups }: Props) {
 
             span.textContent = input.value || "";
             span.style.display = "inline-block";
-            span.style.width = cs?.width || "60px";
+            span.style.width = cs?.width || "72px";
             span.style.padding = cs?.padding || "0";
             span.style.fontSize = cs?.fontSize || "12px";
             span.style.fontFamily = cs?.fontFamily || "Arial";
@@ -647,9 +654,9 @@ export default function CollectionsTab({ eventId, groups }: Props) {
 
   const visibleMonths = shouldShowPager
     ? monthsToRender.slice(
-      monthPage * MONTHS_PER_PAGE,
-      (monthPage + 1) * MONTHS_PER_PAGE,
-    )
+        monthPage * MONTHS_PER_PAGE,
+        (monthPage + 1) * MONTHS_PER_PAGE,
+      )
     : monthsToRender;
 
   useEffect(() => {
@@ -661,77 +668,97 @@ export default function CollectionsTab({ eventId, groups }: Props) {
   const grandTotal = totalGeneral(monthsToRender);
 
   return (
-    <div className="flex flex-col gap-2 md:gap-3 w-full h-full min-h-0">
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 shrink-0">
-        <select
-          value={selectedGroupId}
-          onChange={(e) =>
-            setSelectedGroupId(
-              e.target.value === "all" ? "all" : Number(e.target.value),
-            )
-          }
-          className="px-3 py-1.5 rounded-lg border text-xs bg-white outline-none focus:ring-2 focus:ring-gray-200 w-full sm:w-44"
-        >
-          <option value="all">Todas as turmas</option>
-          {groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.text}
-            </option>
-          ))}
-        </select>
+    <div className="flex h-full min-h-0 w-full flex-col gap-3">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+              Recolhimentos
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-900">
+              Controle por aluno e mês
+            </h2>
+          </div>
 
-        <button
-          onClick={exportPdf}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white hover:bg-gray-50 cursor-pointer transition whitespace-nowrap disabled:opacity-60"
-          disabled={loading || filteredParticipants.length === 0}
-        >
-          Exportar PDF
-        </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            <select
+              value={selectedGroupId}
+              onChange={(e) =>
+                setSelectedGroupId(
+                  e.target.value === "all" ? "all" : Number(e.target.value),
+                )
+              }
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 sm:w-44"
+            >
+              <option value="all">Todas as turmas</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.text}
+                </option>
+              ))}
+            </select>
 
-        <input
-          value={newParticipantName}
-          onChange={(e) => setNewParticipantName(e.target.value)}
-          placeholder="Nome do aluno"
-          className="px-3 py-1.5 rounded-lg border text-xs bg-white outline-none focus:ring-2 focus:ring-gray-200 w-full sm:w-auto"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") addParticipant();
-          }}
-          disabled={loading}
-        />
+            <button
+              onClick={exportPdf}
+              className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
+              disabled={loading || filteredParticipants.length === 0}
+            >
+              Exportar PDF
+            </button>
 
-        <button
-          onClick={addParticipant}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-background text-white hover:opacity-90 cursor-pointer transition whitespace-nowrap disabled:opacity-60"
-          disabled={loading}
-        >
-          + Aluno
-        </button>
+            <input
+              value={newParticipantName}
+              onChange={(e) => setNewParticipantName(e.target.value)}
+              placeholder="Nome do aluno"
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 sm:w-[220px]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addParticipant();
+              }}
+              disabled={loading}
+            />
+
+            <button
+              onClick={addParticipant}
+              className="h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60 cursor-pointer"
+              disabled={loading}
+            >
+              + Aluno
+            </button>
+          </div>
+        </div>
       </div>
 
-      {error ? <div className="text-xs text-red-600">{error}</div> : null}
+      {error ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      ) : null}
 
       {!monthsLoaded ? (
-        <div className="border rounded-xl bg-white flex flex-col flex-1 min-h-0 items-center justify-center p-6">
-          <p className="text-sm text-gray-600">Carregando recolhimentos...</p>
+        <div className="flex min-h-0 flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white p-6">
+          <p className="text-sm text-slate-500">Carregando recolhimentos...</p>
         </div>
       ) : shouldShowSetupScreen ? (
-        <div className="border rounded-xl bg-white flex flex-col flex-1 min-h-0 items-center justify-center p-6">
-          <div className="w-full max-w-md flex flex-col items-center gap-3">
-            <p className="font-semibold text-background">
-              Configurar condições de pagamento
+        <div className="flex min-h-0 flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+              Configuração inicial
             </p>
-            <p className="text-sm text-gray-600 text-center">
-              Defina o mês inicial e o prazo em meses para gerar os meses de
-              recolhimento dos alunos.
+            <h3 className="mt-1 text-base font-semibold text-slate-900">
+              Definir meses de recolhimento
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Informe o mês inicial e o prazo em meses para gerar a estrutura de
+              pagamentos dos alunos.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 w-full">
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <input
                 type="text"
                 value={startMonthInput}
                 onChange={(e) => setStartMonthInput(e.target.value)}
                 placeholder="MM/AAAA"
-                className="px-3 py-2 rounded-lg border text-sm bg-white outline-none focus:ring-2 focus:ring-gray-200 w-full sm:w-48 text-center"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-center text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 sm:w-40"
                 disabled={loading}
               />
 
@@ -740,7 +767,7 @@ export default function CollectionsTab({ eventId, groups }: Props) {
                 onChange={(e) =>
                   setTermMonths(Number(e.target.value) as 12 | 24 | 36)
                 }
-                className="px-3 py-2 rounded-lg border text-sm bg-white outline-none focus:ring-2 focus:ring-gray-200 w-full sm:w-36 text-center"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-center text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 sm:w-28"
                 disabled={loading}
               >
                 <option value={12}>12</option>
@@ -750,7 +777,7 @@ export default function CollectionsTab({ eventId, groups }: Props) {
 
               <button
                 onClick={generatePaymentMonths}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-background text-white hover:opacity-90 disabled:opacity-60 w-full sm:w-auto"
+                className="h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
                 disabled={loading || !startMonthInput}
               >
                 Gerar
@@ -762,52 +789,52 @@ export default function CollectionsTab({ eventId, groups }: Props) {
         <div
           ref={exportRef}
           id="collections-export-root"
-          className="border rounded-xl overflow-hidden bg-white flex flex-col flex-1 min-h-0"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white"
         >
-          <div className="overflow-auto flex-1 min-h-0">
-            {shouldShowPager ? (
-              <div className="flex items-center justify-end gap-2 px-3 py-2 border-b bg-gray-50">
-                <button
-                  onClick={() => setMonthPage((p) => Math.max(0, p - 1))}
-                  disabled={monthPage === 0}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  &lt;&lt;
-                </button>
+          {shouldShowPager ? (
+            <div className="flex items-center justify-end gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
+              <button
+                onClick={() => setMonthPage((p) => Math.max(0, p - 1))}
+                disabled={monthPage === 0}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                &lt;&lt;
+              </button>
 
-                <span className="text-xs text-gray-600">
-                  {monthPage + 1} / {totalPages}
-                </span>
+              <span className="text-xs text-slate-500">
+                {monthPage + 1} / {totalPages}
+              </span>
 
-                <button
-                  onClick={() =>
-                    setMonthPage((p) => Math.min(totalPages - 1, p + 1))
-                  }
-                  disabled={monthPage >= totalPages - 1}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  &gt;&gt;
-                </button>
-              </div>
-            ) : null}
+              <button
+                onClick={() =>
+                  setMonthPage((p) => Math.min(totalPages - 1, p + 1))
+                }
+                disabled={monthPage >= totalPages - 1}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                &gt;&gt;
+              </button>
+            </div>
+          ) : null}
 
-            <table className="w-full text-[11px] sm:text-xs min-w-max">
-              <thead className="bg-gray-50 border-b sticky top-0 z-20">
+          <div className="flex-1 overflow-auto">
+            <table className="min-w-max w-full text-[11px] sm:text-xs">
+              <thead className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-gray-50 text-left px-3 py-2 font-semibold text-background border-r w-40 sm:w-52 md:w-60">
+                  <th className="sticky left-0 z-30 w-40 border-r border-slate-200 bg-slate-50 px-3 py-2 text-left font-semibold text-slate-800 sm:w-52 md:w-60">
                     Aluno
                   </th>
 
                   {visibleMonths.map((m) => (
                     <th
                       key={m.key}
-                      className="text-left px-2 py-2 font-semibold text-gray-700 whitespace-nowrap"
+                      className="whitespace-nowrap px-2 py-2 text-left font-semibold text-slate-600"
                     >
                       {m.label}
                     </th>
                   ))}
 
-                  <th className="text-right px-3 py-2 font-semibold text-background whitespace-nowrap">
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-800">
                     Total
                   </th>
                 </tr>
@@ -817,9 +844,9 @@ export default function CollectionsTab({ eventId, groups }: Props) {
                 {filteredParticipants.map((p) => (
                   <tr
                     key={p.id}
-                    className="border-b last:border-b-0 hover:bg-gray-50/50"
+                    className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50"
                   >
-                    <td className="sticky left-0 z-10 bg-white px-3 py-2 border-r">
+                    <td className="sticky left-0 z-10 border-r border-slate-200 bg-white px-3 py-2 text-slate-700">
                       {p.name}
                     </td>
 
@@ -835,7 +862,7 @@ export default function CollectionsTab({ eventId, groups }: Props) {
                             }));
                           }}
                           onBlur={() => commitCell(p.id, m.key)}
-                          className="w-15 px-1 py-0.5 rounded text-left text-[11px] sm:text-xs outline-none focus:ring-2 focus:ring-gray-200"
+                          className="w-[72px] rounded-md border border-transparent bg-slate-50 px-2 py-1 text-left text-xs text-slate-700 outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-slate-200"
                           inputMode="decimal"
                           placeholder=""
                           disabled={loading}
@@ -843,7 +870,7 @@ export default function CollectionsTab({ eventId, groups }: Props) {
                       </td>
                     ))}
 
-                    <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">
+                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-800">
                       {formatBRL(totalByParticipant(p.id, monthsToRender))}
                     </td>
                   </tr>
@@ -852,24 +879,24 @@ export default function CollectionsTab({ eventId, groups }: Props) {
             </table>
           </div>
 
-          <div className="bg-gray-50 border-t shrink-0">
-            <table className="w-full text-[11px] sm:text-xs min-w-max">
+          <div className="shrink-0 border-t border-slate-200 bg-slate-50">
+            <table className="min-w-max w-full text-[11px] sm:text-xs">
               <tbody>
                 <tr>
-                  <td className="sticky left-0 bg-gray-50 px-3 py-2 border-r font-semibold text-background z-10 w-40 sm:w-52 md:w-60">
+                  <td className="sticky left-0 z-10 w-40 border-r border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-800 sm:w-52 md:w-60">
                     Total por mês
                   </td>
 
                   {visibleMonths.map((m) => (
                     <td
                       key={m.key}
-                      className="bg-gray-50 px-2 py-2 font-semibold text-background whitespace-nowrap"
+                      className="whitespace-nowrap bg-slate-50 px-2 py-2 font-semibold text-slate-700"
                     >
                       {formatBRL(totalByMonth(m.key))}
                     </td>
                   ))}
 
-                  <td className="bg-gray-50 px-3 py-2 text-right font-bold text-background whitespace-nowrap">
+                  <td className="whitespace-nowrap bg-slate-50 px-3 py-2 text-right font-bold text-slate-900">
                     {formatBRL(grandTotal)}
                   </td>
                 </tr>

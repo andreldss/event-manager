@@ -37,7 +37,6 @@ export default function EventHeader({ event }: Props) {
 
   return (
     <div className="flex flex-col gap-3 bg-gray-100 rounded-xl p-6">
-      {/* Status pill */}
       <div className="flex items-center gap-2">
         <span
           className={`inline-flex items-center gap-1.5 text-xs font-medium ${st.text}`}
@@ -54,7 +53,6 @@ export default function EventHeader({ event }: Props) {
         )}
       </div>
 
-      {/* Nome */}
       <div>
         <h1 className="text-[26px] font-bold tracking-tight text-slate-900 leading-none">
           {event.name}
@@ -64,7 +62,6 @@ export default function EventHeader({ event }: Props) {
         )}
       </div>
 
-      {/* Meta chips */}
       <div className="flex flex-wrap gap-2">
         {event.date && (
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">

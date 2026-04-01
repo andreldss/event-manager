@@ -5,8 +5,17 @@ import { ClientsModule } from './clients/clients.module.js';
 import { EventsModule } from './events/events.module.js';
 import { FinancialModule } from './financial/financial.module.js';
 import { StorageModule } from './storage/storage.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule, ClientsModule, EventsModule, FinancialModule, StorageModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    ClientsModule,
+    EventsModule,
+    FinancialModule,
+    StorageModule,
+    UsersModule,
+  ],
 })
-export class AppModule { }
+export class AppModule {}

@@ -5,79 +5,80 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { ChevronRight, RotateCcw, Search, Plus } from "lucide-react";
 
-type Client = {
+type User = {
   id: string | number;
   name: string;
-  phone?: string | null;
-  notes?: string | null;
+  email: string;
+  isAdmin: boolean;
   createdAt?: string;
 };
 
-export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
+export default function UsersPage() {
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
-  async function loadClients() {
+  async function loadUsers() {
     setError("");
     setIsLoading(true);
 
     try {
-      const response = await apiFetch("/clients", "GET");
-      setClients(Array.isArray(response) ? response : []);
+      const response = await apiFetch("/users", "GET");
+      setUsers(Array.isArray(response) ? response : []);
     } catch {
-      setError("Falha de rede ou servidor fora do ar.");
-      setClients([]);
+      setError("Falha ao carregar usuários.");
+      setUsers([]);
     } finally {
       setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    loadClients();
+    loadUsers();
   }, []);
 
-  const filteredClients = useMemo(() => {
+  const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
 
-    if (!term) return clients;
+    if (!term) return users;
 
-    return clients.filter((client) =>
-      (client.name || "").toLowerCase().includes(term),
+    return users.filter(
+      (user) =>
+        user.name.toLowerCase().includes(term) ||
+        user.email.toLowerCase().includes(term),
     );
-  }, [clients, search]);
+  }, [users, search]);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
+          <div>
             <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
               Cadastros
             </p>
             <h2 className="mt-1 text-lg font-semibold text-slate-900">
-              Clientes
+              Usuários
             </h2>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative min-w-0 sm:w-[280px]">
+            <div className="relative sm:w-[280px]">
               <Search
                 size={16}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
               <input
-                type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar nome do cliente..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                placeholder="Buscar nome ou e-mail..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
               />
             </div>
 
             <button
-              onClick={loadClients}
+              onClick={loadUsers}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer"
             >
               <RotateCcw size={15} />
@@ -85,40 +86,36 @@ export default function ClientsPage() {
             </button>
 
             <Link
-              href="/dashboard/records/clients/new"
+              href="/dashboard/records/users/new"
               className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-700"
             >
               <Plus size={15} />
-              Novo cliente
+              Novo usuário
             </Link>
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="shrink-0 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {error}
         </div>
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-                Lista
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {isLoading
-                  ? "Carregando clientes..."
-                  : `${filteredClients.length} ${
-                      filteredClients.length === 1
-                        ? "cliente encontrado"
-                        : "clientes encontrados"
-                    }`}
-              </p>
-            </div>
-          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+            Lista
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            {isLoading
+              ? "Carregando usuários..."
+              : `${filteredUsers.length} ${
+                  filteredUsers.length === 1
+                    ? "usuário encontrado"
+                    : "usuários encontrados"
+                }`}
+          </p>
         </div>
 
         <div className="flex-1 overflow-auto">
@@ -126,43 +123,45 @@ export default function ClientsPage() {
             <div className="flex h-full flex-col items-center justify-center px-6 py-10">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-slate-700" />
               <p className="mt-4 text-sm text-slate-500">
-                Buscando clientes...
+                Buscando usuários...
               </p>
             </div>
-          ) : filteredClients.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <div className="px-4 py-6">
               <p className="text-sm text-slate-500">
-                Nenhum cliente encontrado.
+                Nenhum usuário encontrado.
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                Tente ajustar a busca ou crie um novo cliente.
+                Tente ajustar a busca ou crie um novo usuário.
               </p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {filteredClients.map((client) => (
+              {filteredUsers.map((user) => (
                 <Link
-                  key={String(client.id)}
-                  href={`/dashboard/records/clients/${client.id}`}
+                  key={String(user.id)}
+                  href={`/dashboard/records/users/${user.id}`}
                   className="group block transition hover:bg-slate-50/70"
                 >
                   <div className="flex items-center justify-between gap-4 px-4 py-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm text-slate-400">
-                          #{client.id}
+                          #{user.id}
                         </span>
                         <p className="truncate text-[15px] font-semibold text-slate-900">
-                          {client.name}
+                          {user.name}
                         </p>
+
+                        {user.isAdmin && (
+                          <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                            Admin
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
-                        <span>
-                          {client.phone
-                            ? `Fone: ${client.phone}`
-                            : "Sem telefone"}
-                        </span>
+                        <span>{user.email}</span>
                       </div>
                     </div>
 
