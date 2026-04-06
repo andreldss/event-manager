@@ -10,7 +10,28 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
+
+  private isValidAccessLevel(value: unknown): boolean {
+    return value === 'none' || value === 'view' || value === 'manage';
+  }
+
+  private validatePermissions(permissions: UpdateUserDto['permissions']) {
+    if (!permissions) {
+      throw new BadRequestException('Permissões inválidas.');
+    }
+
+    if (
+      !this.isValidAccessLevel(permissions.financialAccess) ||
+      !this.isValidAccessLevel(permissions.recordsAccess) ||
+      !this.isValidAccessLevel(permissions.attachmentsAccess) ||
+      !this.isValidAccessLevel(permissions.collectionsAccess) ||
+      !this.isValidAccessLevel(permissions.eventsAccess) ||
+      !this.isValidAccessLevel(permissions.usersAccess)
+    ) {
+      throw new BadRequestException('Permissões inválidas.');
+    }
+  }
 
   async count() {
     return this.prisma.user.count();
@@ -38,6 +59,16 @@ export class UsersService {
         email: true,
         isAdmin: true,
         createdAt: true,
+        permissions: {
+          select: {
+            financialAccess: true,
+            recordsAccess: true,
+            attachmentsAccess: true,
+            collectionsAccess: true,
+            eventsAccess: true,
+            usersAccess: true,
+          },
+        },
       },
     });
 
@@ -78,7 +109,17 @@ export class UsersService {
         name: body.name.trim(),
         email,
         password: hashedPassword,
-        isAdmin: body.isAdmin,
+        isAdmin: false,
+        permissions: {
+          create: {
+            financialAccess: 'none',
+            recordsAccess: 'none',
+            attachmentsAccess: 'none',
+            collectionsAccess: 'none',
+            eventsAccess: 'none',
+            usersAccess: 'none',
+          },
+        },
       },
       select: {
         id: true,
@@ -93,6 +134,9 @@ export class UsersService {
   async update(id: number, body: UpdateUserDto) {
     const existingUser = await this.prisma.user.findUnique({
       where: { id },
+      include: {
+        permissions: true,
+      },
     });
 
     if (!existingUser) {
@@ -109,6 +153,10 @@ export class UsersService {
 
     if (body.password !== undefined && body.password.length < 6) {
       throw new BadRequestException('Senha deve ter pelo menos 6 caracteres.');
+    }
+
+    if (body.permissions !== undefined) {
+      this.validatePermissions(body.permissions);
     }
 
     if (body.email) {
@@ -141,6 +189,30 @@ export class UsersService {
           : {}),
         ...(body.isAdmin !== undefined ? { isAdmin: body.isAdmin } : {}),
         ...(hashedPassword ? { password: hashedPassword } : {}),
+        ...(body.permissions !== undefined
+          ? {
+            permissions: {
+              upsert: {
+                update: {
+                  financialAccess: body.permissions.financialAccess,
+                  recordsAccess: body.permissions.recordsAccess,
+                  attachmentsAccess: body.permissions.attachmentsAccess,
+                  collectionsAccess: body.permissions.collectionsAccess,
+                  eventsAccess: body.permissions.eventsAccess,
+                  usersAccess: body.permissions.usersAccess,
+                },
+                create: {
+                  financialAccess: body.permissions.financialAccess,
+                  recordsAccess: body.permissions.recordsAccess,
+                  attachmentsAccess: body.permissions.attachmentsAccess,
+                  collectionsAccess: body.permissions.collectionsAccess,
+                  eventsAccess: body.permissions.eventsAccess,
+                  usersAccess: body.permissions.usersAccess,
+                },
+              },
+            },
+          }
+          : {}),
       },
       select: {
         id: true,
@@ -148,6 +220,16 @@ export class UsersService {
         email: true,
         isAdmin: true,
         createdAt: true,
+        permissions: {
+          select: {
+            financialAccess: true,
+            recordsAccess: true,
+            attachmentsAccess: true,
+            collectionsAccess: true,
+            eventsAccess: true,
+            usersAccess: true,
+          },
+        },
       },
     });
   }

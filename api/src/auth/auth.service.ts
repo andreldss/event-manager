@@ -80,7 +80,7 @@ export class AuthService {
             if (error instanceof HttpException) {
                 throw error;
             }
-
+            console.log(error)
             throw new InternalServerErrorException('Erro interno ao fazer login.');
         }
     }

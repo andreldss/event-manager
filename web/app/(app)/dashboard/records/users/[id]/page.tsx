@@ -4,6 +4,35 @@ import { apiFetch } from "@/lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 
+type AccessLevel = "none" | "view" | "manage";
+
+type PermissionsState = {
+  financialAccess: AccessLevel;
+  recordsAccess: AccessLevel;
+  attachmentsAccess: AccessLevel;
+  collectionsAccess: AccessLevel;
+  eventsAccess: AccessLevel;
+  usersAccess: AccessLevel;
+};
+
+const defaultPermissions: PermissionsState = {
+  financialAccess: "none",
+  recordsAccess: "none",
+  attachmentsAccess: "none",
+  collectionsAccess: "none",
+  eventsAccess: "none",
+  usersAccess: "none",
+};
+
+const permissionOptions = [
+  { key: "eventsAccess", label: "Eventos" },
+  { key: "financialAccess", label: "Financeiro" },
+  { key: "collectionsAccess", label: "Recolhimentos" },
+  { key: "attachmentsAccess", label: "Anexos" },
+  { key: "recordsAccess", label: "Cadastros" },
+  { key: "usersAccess", label: "Usuários" },
+] as const;
+
 export default function UserDetails() {
   const router = useRouter();
   const params = useParams();
@@ -13,11 +42,14 @@ export default function UserDetails() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [permissions, setPermissions] =
+    useState<PermissionsState>(defaultPermissions);
 
   const [original, setOriginal] = useState({
     name: "",
     email: "",
     isAdmin: false,
+    permissions: defaultPermissions,
   });
 
   const [loading, setLoading] = useState(true);
@@ -30,9 +62,10 @@ export default function UserDetails() {
       name !== original.name ||
       email !== original.email ||
       isAdmin !== original.isAdmin ||
-      password.trim() !== ""
+      password.trim() !== "" ||
+      JSON.stringify(permissions) !== JSON.stringify(original.permissions)
     );
-  }, [name, email, isAdmin, password, original]);
+  }, [name, email, isAdmin, password, permissions, original]);
 
   async function loadUser() {
     setError("");
@@ -45,14 +78,25 @@ export default function UserDetails() {
       const loadedEmail = response.email || "";
       const loadedIsAdmin = !!response.isAdmin;
 
+      const loadedPermissions = {
+        financialAccess: response.permissions?.financialAccess || "none",
+        recordsAccess: response.permissions?.recordsAccess || "none",
+        attachmentsAccess: response.permissions?.attachmentsAccess || "none",
+        collectionsAccess: response.permissions?.collectionsAccess || "none",
+        eventsAccess: response.permissions?.eventsAccess || "none",
+        usersAccess: response.permissions?.usersAccess || "none",
+      } as PermissionsState;
+
       setName(loadedName);
       setEmail(loadedEmail);
       setIsAdmin(loadedIsAdmin);
+      setPermissions(loadedPermissions);
 
       setOriginal({
         name: loadedName,
         email: loadedEmail,
         isAdmin: loadedIsAdmin,
+        permissions: loadedPermissions,
       });
     } catch {
       setError("Falha ao carregar usuário.");
@@ -65,6 +109,16 @@ export default function UserDetails() {
     loadUser();
   }, []);
 
+  function handlePermissionChange(
+    key: keyof PermissionsState,
+    value: AccessLevel,
+  ) {
+    setPermissions((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
 
@@ -76,6 +130,7 @@ export default function UserDetails() {
         name,
         email,
         isAdmin,
+        permissions,
         ...(password.trim() ? { password } : {}),
       });
 
@@ -113,7 +168,7 @@ export default function UserDetails() {
   if (loading) {
     return (
       <div className="flex h-full justify-center px-6 py-6">
-        <div className="flex min-h-[320px] w-full max-w-3xl items-center justify-center rounded-2xl border border-slate-200 bg-white">
+        <div className="flex min-h-[320px] w-full max-w-5xl items-center justify-center rounded-2xl border border-slate-200 bg-white">
           <div className="flex flex-col items-center gap-3">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-slate-700" />
             <p className="text-sm text-slate-500">Carregando usuário...</p>
@@ -125,7 +180,7 @@ export default function UserDetails() {
 
   return (
     <div className="flex h-full min-h-0 justify-center px-6 py-6">
-      <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6">
+      <div className="w-full max-w-5xl">
         <div className="mb-5">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
             Cadastros
@@ -136,52 +191,61 @@ export default function UserDetails() {
         </div>
 
         <form onSubmit={handleSave} className="flex flex-col gap-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="text-sm text-slate-600">Nome*</label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
-                />
-              </div>
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
 
-              <div>
-                <label className="text-sm text-slate-600">E-mail*</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
-                />
+            {/* BLOCO DADOS */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="text-sm text-slate-600">Nome*</label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-slate-600">E-mail*</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-slate-600">Nova senha</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Preencha só se quiser alterar"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="text-sm text-slate-600">Nova senha</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Preencha só se quiser alterar"
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
-                />
+            {/* BLOCO PERMISSÕES */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="mb-4">
+                <p className="text-sm font-semibold text-slate-900">
+                  Permissões
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Controle de acesso do usuário.
+                </p>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <label className="flex cursor-pointer items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">
-                      Administrador
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Permite acesso administrativo no sistema.
-                    </p>
-                  </div>
+              <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <label className="flex cursor-pointer items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700">
+                    Administrador
+                  </span>
 
                   <input
                     type="checkbox"
@@ -191,6 +255,43 @@ export default function UserDetails() {
                   />
                 </label>
               </div>
+
+              <div className="max-h-[260px] overflow-y-auto pr-1">
+                <div className="flex flex-col gap-2">
+                  {permissionOptions.map((item) => (
+                    <div
+                      key={item.key}
+                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                    >
+                      <span className="text-sm text-slate-700">
+                        {item.label}
+                      </span>
+
+                      <select
+                        value={permissions[item.key]}
+                        onChange={(e) =>
+                          handlePermissionChange(
+                            item.key,
+                            e.target.value as AccessLevel,
+                          )
+                        }
+                        disabled={isAdmin}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+                      >
+                        <option value="none">Nenhum</option>
+                        <option value="view">Visualizar</option>
+                        <option value="manage">Gerenciar</option>
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {isAdmin && (
+                <p className="mt-3 text-xs text-slate-500">
+                  Administrador possui acesso total.
+                </p>
+              )}
             </div>
           </div>
 

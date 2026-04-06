@@ -22,6 +22,7 @@ model User {
   createdAt DateTime @default(now())
 
   storageNodes StorageNode[]
+  permissions     UserPermission?
 }
 
 model Client {
@@ -111,6 +112,12 @@ enum FinancialStatus {
 enum FinancialSourceType {
   manual
   collection
+}
+
+enum AccessLevel {
+  none
+  view
+  manage
 }
 
 model FinancialTransaction {
@@ -214,4 +221,20 @@ model StorageNode {
   @@index([eventId, type])
 
   @@unique([eventId, parentId, name])
+}
+
+model UserPermission {
+  id                 Int         @id @default(autoincrement())
+  userId             Int         @unique
+  financialAccess    AccessLevel @default(none)
+  recordsAccess      AccessLevel @default(none)
+  attachmentsAccess  AccessLevel @default(none)
+  collectionsAccess  AccessLevel @default(none)
+  eventsAccess       AccessLevel @default(none)
+  usersAccess        AccessLevel @default(none)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("user_permission")
 }

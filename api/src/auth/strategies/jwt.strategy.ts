@@ -29,7 +29,22 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
         const user = await this.prismaService.user.findUnique({
             where: { id: payload.sub },
-            select: { id: true, email: true },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                isAdmin: true,
+                permissions: {
+                    select: {
+                        financialAccess: true,
+                        recordsAccess: true,
+                        attachmentsAccess: true,
+                        collectionsAccess: true,
+                        eventsAccess: true,
+                        usersAccess: true,
+                    },
+                },
+            },
         });
 
         if (!user) {
@@ -37,8 +52,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         }
 
         return {
-            userId: user.id,
-            email: user.email
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            isAdmin: user.isAdmin,
+            permissions: user.permissions,
         };
     }
 }
