@@ -8,36 +8,105 @@ type CashflowPoint = {
   expense: number;
 };
 
+type ListFinancialFilters = {
+  eventId?: number;
+  search?: string;
+};
+
 @Injectable()
 export class FinancialService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(eventId: number) {
-    const idNumber = Number(eventId);
+  private parseId(value: number, label = 'ID') {
+    const id = Number(value);
 
-    if (Number.isNaN(idNumber)) {
-      throw new BadRequestException('ID inválido.');
+    if (Number.isNaN(id)) {
+      throw new BadRequestException(`${label} inválido.`);
     }
 
+    return id;
+  }
+
+  async listByEvent(eventId: number) {
+    const eventIdNumber = this.parseId(eventId, 'ID do evento');
+
     return this.prisma.financialTransaction.findMany({
-      where: { eventId: idNumber },
+      where: {
+        eventId: eventIdNumber,
+      },
       include: {
         category: {
           select: {
+            id: true,
+            name: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
             name: true,
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async listAll(filters?: ListFinancialFilters) {
+    const where: any = {};
+
+    if (filters?.eventId) {
+      where.eventId = this.parseId(filters.eventId, 'ID do evento');
+    }
+
+    if (filters?.search?.trim()) {
+      const term = filters.search.trim();
+
+      where.OR = [
+        {
+          description: {
+            contains: term,
+          },
+        },
+        {
+          category: {
+            name: {
+              contains: term,
+            },
+          },
+        },
+        {
+          event: {
+            name: {
+              contains: term,
+            },
+          },
+        },
+      ];
+    }
+
+    return this.prisma.financialTransaction.findMany({
+      where,
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
     });
   }
 
   async create(body: CreateTransactionDto) {
-    const eventIdNumber = Number(body.eventId);
-
-    if (Number.isNaN(eventIdNumber)) {
-      throw new BadRequestException('ID inválido.');
-    }
+    const eventIdNumber = this.parseId(body.eventId, 'ID do evento');
 
     const event = await this.prisma.event.findUnique({
       where: { id: eventIdNumber },
@@ -80,7 +149,12 @@ export class FinancialService {
     }
 
     const status = body.status === 'settled' ? 'settled' : 'planned';
-    const paidAt = body.paidAt ? new Date(body.paidAt) : new Date();
+
+    let paidAt: Date | null = null;
+
+    if (status === 'settled') {
+      paidAt = body.paidAt ? new Date(body.paidAt) : new Date();
+    }
 
     return this.prisma.financialTransaction.create({
       data: {
@@ -94,18 +168,39 @@ export class FinancialService {
         sourceType: 'manual',
         sourceId: null,
       },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
   }
 
   async getEventCashflow(eventId: number) {
-    const eventIdNumber = Number(eventId);
+    const eventIdNumber = this.parseId(eventId, 'ID do evento');
 
-    if (Number.isNaN(eventIdNumber))
-      throw new BadRequestException('ID do evento inválido.');
+    return this.buildCashflow({
+      eventId: eventIdNumber,
+    });
+  }
 
-    const collections = await this.prisma.financialTransaction.findMany({
+  async getGlobalCashflow() {
+    return this.buildCashflow({});
+  }
+
+  private async buildCashflow(where: { eventId?: number }) {
+    const transactions = await this.prisma.financialTransaction.findMany({
       where: {
-        eventId: eventIdNumber,
+        ...where,
         status: 'settled',
         paidAt: { not: null },
       },
@@ -121,7 +216,7 @@ export class FinancialService {
 
     const map = new Map<string, CashflowPoint>();
 
-    for (const item of collections) {
+    for (const item of transactions) {
       const date = item.paidAt!.toISOString().slice(0, 10);
 
       if (!map.has(date)) {
@@ -144,11 +239,15 @@ export class FinancialService {
     return Array.from(map.values());
   }
 
-  async settleTransaction(eventId: number, transactionId: number) {
-    const transaction = await this.prisma.financialTransaction.findFirst({
+  async settleTransaction(transactionId: number) {
+    const transactionIdNumber = this.parseId(
+      transactionId,
+      'ID da movimentação',
+    );
+
+    const transaction = await this.prisma.financialTransaction.findUnique({
       where: {
-        id: transactionId,
-        eventId,
+        id: transactionIdNumber,
       },
     });
 
@@ -167,11 +266,34 @@ export class FinancialService {
     }
 
     return this.prisma.financialTransaction.update({
-      where: { id: transactionId },
+      where: {
+        id: transactionIdNumber,
+      },
       data: {
         status: 'settled',
         paidAt: new Date(),
       },
     });
+  }
+
+  async settleEventTransaction(eventId: number, transactionId: number) {
+    const eventIdNumber = this.parseId(eventId, 'ID do evento');
+    const transactionIdNumber = this.parseId(
+      transactionId,
+      'ID da movimentação',
+    );
+
+    const transaction = await this.prisma.financialTransaction.findFirst({
+      where: {
+        id: transactionIdNumber,
+        eventId: eventIdNumber,
+      },
+    });
+
+    if (!transaction) {
+      throw new BadRequestException('Movimentação não encontrada.');
+    }
+
+    return this.settleTransaction(transaction.id);
   }
 }

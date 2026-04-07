@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Banknote,
   ChevronLeft,
   FilePenLine,
   LayoutDashboard,
@@ -43,6 +44,15 @@ export default function Dashboard({ children }: { children: React.ReactNode }) {
             icon={<PartyPopper size={20} />}
             label={"Eventos"}
             href={"/dashboard/events"}
+            alert={false}
+          />
+        )}
+
+        {hasAccess(user, "financialAccess", "view") && (
+          <SidebarItem
+            icon={<Banknote size={20} />}
+            label={"Financeiro"}
+            href={"/dashboard/financial"}
             alert={false}
           />
         )}
