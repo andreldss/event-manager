@@ -22,7 +22,7 @@ export default function SidebarItem({
   return (
     <Link href={href}>
       <li
-        className={`relative flex text-black gap-3 items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer hover:bg-gray-400 hover:text-white active:opacity-100 transition-colors ${active ? `bg-background text-white` : ``}`}
+        className={`relative flex text-black gap-3 items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer hover:bg-gray-300 hover:text-white active:opacity-100 transition-colors ${active ? `bg-background text-white` : ``}`}
       >
         {icon}
         <span>{label}</span>

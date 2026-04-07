@@ -35,8 +35,12 @@ export default function EventsPage() {
     try {
       const response = await apiFetch("/events", "GET");
       setEvents(Array.isArray(response) ? response : []);
-    } catch {
-      setError("Falha de rede ou servidor fora do ar.");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Falha ao carregar os eventos.");
+      }
       setEvents([]);
     } finally {
       setIsLoading(false);

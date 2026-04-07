@@ -23,8 +23,12 @@ export default function FinancialCategoryPage() {
     try {
       const response = await apiFetch("/financial-category", "GET");
       setCategories(Array.isArray(response) ? response : []);
-    } catch {
-      setError("Falha ao carregar categorias.");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Falha ao carregar as categorias financeiras.");
+      }
       setCategories([]);
     } finally {
       setIsLoading(false);

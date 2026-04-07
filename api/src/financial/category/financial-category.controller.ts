@@ -1,40 +1,93 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { CreateFinancialCategoryDto } from './dto/category.dto.js';
 import { FinancialCategoryService } from './financial-category.service.js';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
+import { hasAccess } from '../../common/auth/has-access.js';
+import { AuthUser } from 'src/common/types/auth-user.js';
 
+@UseGuards(JwtAuthGuard)
 @Controller('financial-category')
 export class FinancialCategoryController {
+  constructor(private readonly service: FinancialCategoryService) {}
 
-    constructor(private readonly service: FinancialCategoryService) { }
-
-    @Get()
-    list() {
-        return this.service.list();
+  @Get()
+  list(@Req() req: { user: AuthUser }) {
+    if (!hasAccess(req.user, 'recordsAccess', 'view')) {
+      throw new ForbiddenException('Você não tem acesso aos cadastros.');
     }
 
-    @Post()
-    create(@Body() body: CreateFinancialCategoryDto) {
-        return this.service.create(body.name);
+    return this.service.list();
+  }
+
+  @Post()
+  create(
+    @Req() req: { user: AuthUser },
+    @Body() body: CreateFinancialCategoryDto,
+  ) {
+    if (!hasAccess(req.user, 'recordsAccess', 'manage')) {
+      throw new ForbiddenException(
+        'Você não tem permissão para criar cadastros.',
+      );
     }
 
-    @Patch(':id')
-    update(@Param('id') id: string, @Body() body: CreateFinancialCategoryDto) {
-        return this.service.update(Number(id), body.name);
+    return this.service.create(body.name);
+  }
+
+  @Patch(':id')
+  update(
+    @Req() req: { user: AuthUser },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: CreateFinancialCategoryDto,
+  ) {
+    if (!hasAccess(req.user, 'recordsAccess', 'manage')) {
+      throw new ForbiddenException(
+        'Você não tem permissão para editar cadastros.',
+      );
     }
 
-    @Get('count')
-    count() {
-        return this.service.getCount();
+    return this.service.update(id, body.name);
+  }
+
+  @Get('count')
+  count(@Req() req: { user: AuthUser }) {
+    return this.service.getCount();
+  }
+
+  @Get(':id')
+  getById(
+    @Req() req: { user: AuthUser },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    if (!hasAccess(req.user, 'recordsAccess', 'view')) {
+      throw new ForbiddenException('Você não tem acesso aos cadastros.');
     }
 
-    @Get(':id')
-    getById(@Param('id') id: string) {
-        return this.service.getById(Number(id));
+    return this.service.getById(id);
+  }
+
+  @Delete(':id')
+  remove(
+    @Req() req: { user: AuthUser },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    if (!hasAccess(req.user, 'recordsAccess', 'manage')) {
+      throw new ForbiddenException(
+        'Você não tem permissão para excluir cadastros.',
+      );
     }
 
-    @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.service.remove(Number(id));
-    }
-
+    return this.service.remove(id);
+  }
 }

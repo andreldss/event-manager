@@ -85,8 +85,12 @@ export function EventChart({
     try {
       const response = await apiFetch(`/financial/${eventId}/cashflow`, "GET");
       setData(Array.isArray(response) ? response : []);
-    } catch (err: any) {
-      setError("Falha de rede ou servidor fora do ar.");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Falha ao carregar gráfico.");
+      }
       setData([]);
     } finally {
       setIsLoading(false);

@@ -26,8 +26,12 @@ export default function UsersPage() {
     try {
       const response = await apiFetch("/users", "GET");
       setUsers(Array.isArray(response) ? response : []);
-    } catch {
-      setError("Falha ao carregar usuários.");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Falha ao carregar os usuários.");
+      }
       setUsers([]);
     } finally {
       setIsLoading(false);

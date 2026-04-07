@@ -14,15 +14,16 @@ import { FinancialService } from './financial.service.js';
 import { CreateTransactionDto } from './dto/financial.dto.js';
 import { hasAccess } from '../common/auth/has-access.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { AuthUser } from 'src/common/types/auth-user.js';
 
 @UseGuards(JwtAuthGuard)
 @Controller('financial')
 export class FinancialController {
-  constructor(private readonly service: FinancialService) { }
+  constructor(private readonly service: FinancialService) {}
 
   @Get(':eventId')
   list(
-    @Req() req: any,
+    @Req() req: { user: AuthUser },
     @Param('eventId', ParseIntPipe) eventId: number,
   ) {
     if (!hasAccess(req.user, 'financialAccess', 'view')) {
@@ -34,7 +35,7 @@ export class FinancialController {
 
   @Post(':eventId')
   create(
-    @Req() req: any,
+    @Req() req: { user: AuthUser },
     @Param('eventId', ParseIntPipe) eventId: number,
     @Body() body: Omit<CreateTransactionDto, 'eventId'>,
   ) {
@@ -49,7 +50,7 @@ export class FinancialController {
 
   @Get(':eventId/cashflow')
   getCashflow(
-    @Req() req: any,
+    @Req() req: { user: AuthUser },
     @Param('eventId', ParseIntPipe) eventId: number,
   ) {
     if (!hasAccess(req.user, 'financialAccess', 'view')) {
@@ -61,7 +62,7 @@ export class FinancialController {
 
   @Patch(':eventId/:transactionId/settle')
   settleTransaction(
-    @Req() req: any,
+    @Req() req: { user: AuthUser },
     @Param('eventId', ParseIntPipe) eventId: number,
     @Param('transactionId', ParseIntPipe) transactionId: number,
   ) {

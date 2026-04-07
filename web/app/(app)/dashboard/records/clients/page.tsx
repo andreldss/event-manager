@@ -26,8 +26,13 @@ export default function ClientsPage() {
     try {
       const response = await apiFetch("/clients", "GET");
       setClients(Array.isArray(response) ? response : []);
-    } catch {
-      setError("Falha de rede ou servidor fora do ar.");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Falha ao carregar os clientes.");
+      }
+
       setClients([]);
     } finally {
       setIsLoading(false);
