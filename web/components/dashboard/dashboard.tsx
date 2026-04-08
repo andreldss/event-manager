@@ -4,6 +4,7 @@ import {
   Banknote,
   ChevronLeft,
   FilePenLine,
+  FolderClosed,
   LayoutDashboard,
   PartyPopper,
 } from "lucide-react";
@@ -53,6 +54,15 @@ export default function Dashboard({ children }: { children: React.ReactNode }) {
             icon={<Banknote size={20} />}
             label={"Financeiro"}
             href={"/dashboard/financial"}
+            alert={false}
+          />
+        )}
+
+        {hasAccess(user, "attachmentsAccess", "view") && (
+          <SidebarItem
+            icon={<FolderClosed size={20} />}
+            label={"Anexos"}
+            href={"/dashboard/storage"}
             alert={false}
           />
         )}

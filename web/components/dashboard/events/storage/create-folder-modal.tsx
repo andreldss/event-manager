@@ -8,7 +8,7 @@ type CreateTransactionModalProps = {
   open: boolean;
   onClose: () => void;
   onCreated?: () => void;
-  eventId: number;
+  eventId?: number;
   parentId?: number | null;
 };
 

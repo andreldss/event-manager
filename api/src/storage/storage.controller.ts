@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -21,8 +20,6 @@ import { StorageService, SortField, SortOrder } from './storage.service.js';
 import type { CreateFolderDto } from './dto/folder/create-folder.dto.js';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { hasAccess } from '../common/auth/has-access.js';
-import { AuthUser } from 'src/common/types/auth-user.js';
 
 @UseGuards(JwtAuthGuard)
 @Controller('storage')
@@ -30,73 +27,73 @@ export class StorageController {
   constructor(private readonly storageService: StorageService) {}
 
   @Post('folder')
-  createFolder(@Body() body: CreateFolderDto, @Req() req: { user: AuthUser }) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'manage')) {
-      throw new ForbiddenException('Sem permissão para criar pastas.');
-    }
-
+  createFolder(@Body() body: CreateFolderDto, @Req() req: any) {
     const userId = req.user?.id ?? null;
     return this.storageService.createFolder(body, userId);
   }
 
   @Get('folders')
-  listAllFolders(
-    @Req() req: { user: AuthUser },
-    @Query('eventId') eventId: string,
-  ) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
-      throw new ForbiddenException('Sem acesso aos anexos.');
-    }
+  listAllFolders(@Query('eventId') eventId?: string) {
+    const eventIdNum =
+      eventId !== undefined && eventId !== '' ? Number(eventId) : undefined;
 
-    const eventIdNum = Number(eventId);
-    if (!eventId || Number.isNaN(eventIdNum))
+    if (eventIdNum !== undefined && Number.isNaN(eventIdNum)) {
       throw new BadRequestException('eventId inválido.');
+    }
 
     return this.storageService.listAllFolders(eventIdNum);
   }
 
   @Get('breadcrumb')
   getBreadcrumb(
-    @Req() req: { user: AuthUser },
-    @Query('folderId') folderId: string,
+    @Query('folderId') folderId?: string,
+    @Query('eventId') eventId?: string,
   ) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
-      throw new ForbiddenException('Sem acesso aos anexos.');
+    const folderIdNum =
+      folderId !== undefined && folderId !== '' ? Number(folderId) : undefined;
+
+    const eventIdNum =
+      eventId !== undefined && eventId !== '' ? Number(eventId) : undefined;
+
+    if (folderIdNum !== undefined && Number.isNaN(folderIdNum)) {
+      throw new BadRequestException('folderId inválido.');
     }
 
-    const id = Number(folderId);
-    if (!folderId || Number.isNaN(id))
-      throw new BadRequestException('folderId inválido.');
+    if (eventIdNum !== undefined && Number.isNaN(eventIdNum)) {
+      throw new BadRequestException('eventId inválido.');
+    }
 
-    return this.storageService.getBreadcrumb(id);
+    return this.storageService.getBreadcrumb(folderIdNum, eventIdNum);
   }
 
   @Get('items')
   listItems(
-    @Req() req: { user: AuthUser },
-    @Query('eventId') eventId: string,
+    @Query('eventId') eventId?: string,
     @Query('parentId') parentId?: string,
     @Query('cursor') cursor?: string,
     @Query('sortField') sortField?: string,
     @Query('sortOrder') sortOrder?: string,
   ) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
-      throw new ForbiddenException('Sem acesso aos anexos.');
-    }
+    const eventIdNum =
+      eventId !== undefined && eventId !== '' ? Number(eventId) : undefined;
 
-    const eventIdNum = Number(eventId);
-    if (!eventId || Number.isNaN(eventIdNum))
+    if (eventIdNum !== undefined && Number.isNaN(eventIdNum)) {
       throw new BadRequestException('eventId inválido.');
+    }
 
     const parentIdNum =
       parentId !== undefined && parentId !== '' ? Number(parentId) : null;
-    if (parentIdNum !== null && Number.isNaN(parentIdNum))
+
+    if (parentIdNum !== null && Number.isNaN(parentIdNum)) {
       throw new BadRequestException('parentId inválido.');
+    }
 
     const cursorNum =
       cursor !== undefined && cursor !== '' ? Number(cursor) : undefined;
-    if (cursorNum !== undefined && Number.isNaN(cursorNum))
+
+    if (cursorNum !== undefined && Number.isNaN(cursorNum)) {
       throw new BadRequestException('cursor inválido.');
+    }
 
     const validSortFields: SortField[] = ['name', 'updatedAt', 'size'];
     const validSortOrders: SortOrder[] = ['asc', 'desc'];
@@ -121,26 +118,28 @@ export class StorageController {
   @Post('files')
   @UseInterceptors(FilesInterceptor('files', 50))
   async uploadFiles(
-    @Req() req: { user: AuthUser },
     @UploadedFiles() files: Express.Multer.File[],
-    @Body('eventId') eventId: string,
+    @Body('eventId') eventId?: string,
     @Body('parentId') parentId?: string,
+    @Req() req?: any,
   ) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'manage')) {
-      throw new ForbiddenException('Sem permissão para upload.');
-    }
+    const eventIdNum =
+      eventId !== undefined && eventId !== '' ? Number(eventId) : undefined;
 
-    const eventIdNum = Number(eventId);
-    if (!eventId || Number.isNaN(eventIdNum))
+    if (eventIdNum !== undefined && Number.isNaN(eventIdNum)) {
       throw new BadRequestException('eventId inválido.');
+    }
 
     const parentIdNum =
       parentId !== undefined && parentId !== '' ? Number(parentId) : null;
-    if (parentIdNum !== null && Number.isNaN(parentIdNum))
-      throw new BadRequestException('parentId inválido.');
 
-    if (!files || files.length === 0)
+    if (parentIdNum !== null && Number.isNaN(parentIdNum)) {
+      throw new BadRequestException('parentId inválido.');
+    }
+
+    if (!files || files.length === 0) {
       throw new BadRequestException('Nenhum arquivo enviado.');
+    }
 
     const userId = req?.user?.id ?? null;
 
@@ -153,88 +152,70 @@ export class StorageController {
 
   @Get('nodes/:id/thumbnail')
   async serveThumbnail(
-    @Req() req: { user: AuthUser },
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response,
   ) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
-      throw new ForbiddenException('Sem acesso aos anexos.');
-    }
-
     const thumbPath = await this.storageService.getThumbnailPath(id);
     return res.sendFile(thumbPath);
   }
 
   @Get('nodes/:id/raw')
-  async serveRaw(
-    @Req() req: { user: AuthUser },
-    @Param('id', ParseIntPipe) id: number,
-    @Res() res: Response,
-  ) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
-      throw new ForbiddenException('Sem acesso aos anexos.');
+  async serveRaw(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
+    const { absPath, mimeType } = await this.storageService.getFilePath(id);
+
+    if (mimeType) {
+      res.setHeader('Content-Type', mimeType);
     }
 
-    const { absPath, mimeType } = await this.storageService.getFilePath(id);
-    if (mimeType) res.setHeader('Content-Type', mimeType);
     res.setHeader('Cache-Control', 'private, max-age=3600');
     return res.sendFile(absPath);
   }
 
   @Get('nodes/:id/download')
   async downloadFile(
-    @Req() req: { user: AuthUser },
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response,
   ) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
-      throw new ForbiddenException('Sem acesso aos anexos.');
-    }
-
     const { absPath, name } = await this.storageService.getFilePath(id);
     return res.download(absPath, name);
   }
 
-  @Patch('nodes/:id/rename')
-  renameNode(
-    @Req() req: { user: AuthUser },
-    @Param('id', ParseIntPipe) id: number,
-    @Body('name') name: string,
-  ) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'manage')) {
-      throw new ForbiddenException('Sem permissão para editar arquivos.');
+  @Get('global-root')
+  getGlobalRoot(@Query('clientId') clientId?: string) {
+    const clientIdNum =
+      clientId !== undefined && clientId !== '' ? Number(clientId) : undefined;
+
+    if (clientIdNum !== undefined && Number.isNaN(clientIdNum)) {
+      throw new BadRequestException('clientId inválido.');
     }
 
-    if (!name) throw new BadRequestException('Nome é obrigatório.');
+    return this.storageService.getGlobalRoot(clientIdNum);
+  }
+
+  @Patch('nodes/:id/rename')
+  renameNode(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('name') name: string,
+    @Req() req: any,
+  ) {
+    if (!name) {
+      throw new BadRequestException('Nome é obrigatório.');
+    }
 
     return this.storageService.renameNode(id, name, req.user?.id ?? null);
   }
 
   @Patch('nodes/:id/move')
   moveNode(
-    @Req() req: { user: AuthUser },
     @Param('id', ParseIntPipe) id: number,
     @Body('targetParentId') targetParentId: number | null,
-    @Body('eventId') eventId: number,
+    @Body('eventId') eventId?: number,
   ) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'manage')) {
-      throw new ForbiddenException('Sem permissão para mover arquivos.');
-    }
-
-    if (!eventId) throw new BadRequestException('eventId é obrigatório.');
-
     return this.storageService.moveNode(id, targetParentId ?? null, eventId);
   }
 
   @Delete('nodes/:id')
-  deleteNode(
-    @Req() req: { user: AuthUser },
-    @Param('id', ParseIntPipe) id: number,
-  ) {
-    if (!hasAccess(req.user, 'attachmentsAccess', 'manage')) {
-      throw new ForbiddenException('Sem permissão para excluir arquivos.');
-    }
-
+  deleteNode(@Param('id', ParseIntPipe) id: number) {
     return this.storageService.deleteNode(id);
   }
 }
