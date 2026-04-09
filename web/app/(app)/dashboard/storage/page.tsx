@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import StorageManager from "@/components/dashboard/storage/storage-manager";
-import FolderCard from "@/components/dashboard/events/storage/folder-card";
+import FolderCard from "@/components/dashboard/storage/folder-card";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 

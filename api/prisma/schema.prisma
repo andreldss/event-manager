@@ -200,21 +200,23 @@ enum StorageNodeType {
 model StorageNode {
   id          Int             @id @default(autoincrement())
   eventId     Int
-  event       Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event       Event           @relation(fields: [eventId], references: [id], onDelete: Cascade, map: "fk_storage_node_event")
   parentId    Int?
-  parent      StorageNode?    @relation("StorageTree", fields: [parentId], references: [id], onDelete: Cascade)
+  parent      StorageNode?    @relation("StorageTree", fields: [parentId], references: [id], onDelete: Cascade, map: "fk_storage_node_parent")
   children    StorageNode[]   @relation("StorageTree")
   type        StorageNodeType
   name        String
   mimeType    String?         @db.VarChar(128)
-  size        Int?    
-  storageKey  String?       
-  thumbKey    String?      
+  size        Int?
+  storageKey  String?
+  thumbKey    String?
   createdById Int?
-  createdBy   User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy   User?           @relation(fields: [createdById], references: [id], onDelete: SetNull, map: "fk_storage_node_created_by")
 
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  publicShares StorageNodePublicShare[]
 
   @@index([eventId, parentId, createdAt])
   @@index([eventId, parentId, name])
@@ -235,6 +237,23 @@ model UserPermission {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_user_permission_user")
+
   @@map("user_permission")
+}
+
+model StorageNodePublicShare {
+  id            Int       @id @default(autoincrement())
+  nodeId        Int
+  token         String    @unique
+  allowDownload Boolean   @default(true)
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  node StorageNode @relation(fields: [nodeId], references: [id], onDelete: Cascade, map: "fk_storage_public_share_node")
+
+  @@index([nodeId])
+  @@index([token])
+  @@map("storage_node_public_share")
 }
