@@ -23,6 +23,7 @@ model User {
 
   storageNodes StorageNode[]
   permissions     UserPermission?
+  auditLogs       AuditLog[]
 }
 
 model Client {
@@ -197,6 +198,12 @@ enum StorageNodeType {
   file
 }
 
+enum AuditActorType {
+  user
+  public_share
+  system
+}
+
 model StorageNode {
   id          Int             @id @default(autoincrement())
   eventId     Int
@@ -247,6 +254,8 @@ model StorageNodePublicShare {
   nodeId        Int
   token         String    @unique
   allowDownload Boolean   @default(true)
+  allowUpload   Boolean   @default(false)
+  allowCreateFolders Boolean @default(false)
   expiresAt     DateTime?
   revokedAt     DateTime?
   createdAt     DateTime  @default(now())
@@ -256,4 +265,32 @@ model StorageNodePublicShare {
   @@index([nodeId])
   @@index([token])
   @@map("storage_node_public_share")
+}
+
+model AuditLog {
+  id            Int            @id @default(autoincrement())
+  module        String         @db.VarChar(64)
+  action        String         @db.VarChar(64)
+  entityType    String?        @db.VarChar(64)
+  entityId      Int?
+  actorType     AuditActorType @default(user)
+  actorUserId   Int?
+  publicShareId Int?
+  eventId       Int?
+  ip            String?        @db.VarChar(64)
+  userAgent     String?        @db.VarChar(255)
+  beforeData    Json?
+  afterData     Json?
+  metadata      Json?
+  createdAt     DateTime       @default(now())
+
+  actorUser User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull, map: "fk_audit_log_actor_user")
+
+  @@index([module, action])
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@index([publicShareId])
+  @@index([eventId])
+  @@index([createdAt])
+  @@map("audit_log")
 }

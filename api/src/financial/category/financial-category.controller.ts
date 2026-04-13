@@ -16,11 +16,15 @@ import { FinancialCategoryService } from './financial-category.service.js';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
 import { hasAccess } from '../../common/auth/has-access.js';
 import { AuthUser } from 'src/common/types/auth-user.js';
+import { AuditService } from '../../audit/audit.service.js';
 
 @UseGuards(JwtAuthGuard)
 @Controller('financial-category')
 export class FinancialCategoryController {
-  constructor(private readonly service: FinancialCategoryService) {}
+  constructor(
+    private readonly service: FinancialCategoryService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Get()
   list(@Req() req: { user: AuthUser }) {
@@ -32,8 +36,8 @@ export class FinancialCategoryController {
   }
 
   @Post()
-  create(
-    @Req() req: { user: AuthUser },
+  async create(
+    @Req() req: any,
     @Body() body: CreateFinancialCategoryDto,
   ) {
     if (!hasAccess(req.user, 'recordsAccess', 'manage')) {
@@ -42,12 +46,21 @@ export class FinancialCategoryController {
       );
     }
 
-    return this.service.create(body.name);
+    const created = await this.service.create(body.name);
+    await this.auditService.log({
+      module: 'financial_category',
+      action: 'create',
+      entityType: 'financial_category',
+      entityId: created.id,
+      afterData: created,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return created;
   }
 
   @Patch(':id')
-  update(
-    @Req() req: { user: AuthUser },
+  async update(
+    @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: CreateFinancialCategoryDto,
   ) {
@@ -57,7 +70,18 @@ export class FinancialCategoryController {
       );
     }
 
-    return this.service.update(id, body.name);
+    const beforeData = await this.service.getById(id);
+    const updated = await this.service.update(id, body.name);
+    await this.auditService.log({
+      module: 'financial_category',
+      action: 'update',
+      entityType: 'financial_category',
+      entityId: id,
+      beforeData,
+      afterData: updated,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return updated;
   }
 
   @Get('count')
@@ -78,8 +102,8 @@ export class FinancialCategoryController {
   }
 
   @Delete(':id')
-  remove(
-    @Req() req: { user: AuthUser },
+  async remove(
+    @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
   ) {
     if (!hasAccess(req.user, 'recordsAccess', 'manage')) {
@@ -88,6 +112,17 @@ export class FinancialCategoryController {
       );
     }
 
-    return this.service.remove(id);
+    const beforeData = await this.service.getById(id);
+    const removed = await this.service.remove(id);
+    await this.auditService.log({
+      module: 'financial_category',
+      action: 'delete',
+      entityType: 'financial_category',
+      entityId: id,
+      beforeData,
+      afterData: removed,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return removed;
   }
 }

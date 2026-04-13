@@ -7,10 +7,12 @@ import { FinancialModule } from './financial/financial.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { UsersModule } from './users/users.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
+import { AuditModule } from './audit/audit.module.js';
 
 @Module({
   imports: [
     PrismaModule,
+    AuditModule,
     AuthModule,
     ClientsModule,
     EventsModule,

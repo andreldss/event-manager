@@ -9,12 +9,53 @@ import type { Response } from 'express';
 import * as archiver from 'archiver';
 import { randomBytes } from 'crypto';
 import { createReadStream, existsSync } from 'fs';
-import { basename, join } from 'path';
+import * as path from 'path';
 import type { CreatePublicShareDto } from './dto/public-share.dto.js';
+import { StorageService } from '../storage.service.js';
 
 @Injectable()
 export class StoragePublicService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
+
+  private readonly storageRoot =
+    process.env.STORAGE_ROOT || path.join(process.cwd(), 'storage');
+
+  private get thumbnailRoot() {
+    return path.join(this.storageRoot, '_thumbnails');
+  }
+
+  private assertSafePath(resolved: string, root: string) {
+    if (!resolved.startsWith(root + path.sep) && resolved !== root) {
+      throw new BadRequestException('Caminho inválido.');
+    }
+  }
+
+  private storageKeyToAbsPath(storageKey: string, root = this.storageRoot) {
+    const abs = path.join(root, ...storageKey.split('/'));
+    this.assertSafePath(abs, root);
+    return abs;
+  }
+
+  private buildUniqueArchiveName(
+    originalName: string,
+    usedNames: Map<string, number>,
+  ) {
+    const ext = path.extname(originalName);
+    const base = path.basename(originalName, ext);
+    const current = usedNames.get(originalName) ?? 0;
+
+    if (current === 0 && !usedNames.has(originalName)) {
+      usedNames.set(originalName, 1);
+      return originalName;
+    }
+
+    const next = current + 1;
+    usedNames.set(originalName, next);
+    return `${base} (${next})${ext}`;
+  }
 
   async createPublicShare(body: CreatePublicShareDto) {
     const node = await this.prisma.storageNode.findUnique({
@@ -38,6 +79,8 @@ export class StoragePublicService {
         nodeId: body.nodeId,
         token,
         allowDownload: body.allowDownload ?? true,
+        allowUpload: body.allowUpload ?? false,
+        allowCreateFolders: body.allowCreateFolders ?? false,
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
       },
     });
@@ -84,6 +127,8 @@ export class StoragePublicService {
       share: {
         id: share.id,
         allowDownload: share.allowDownload,
+        allowUpload: share.allowUpload,
+        allowCreateFolders: share.allowCreateFolders,
         expiresAt: share.expiresAt,
       },
       folder: {
@@ -136,6 +181,8 @@ export class StoragePublicService {
       },
       currentFolderId,
       allowDownload: share.allowDownload,
+      allowUpload: share.allowUpload,
+      allowCreateFolders: share.allowCreateFolders,
       items: items.map((item) => ({
         id: item.id,
         name: item.name,
@@ -227,6 +274,42 @@ export class StoragePublicService {
     stream.pipe(res);
   }
 
+  async servePublicRawFile(token: string, fileId: number, res: Response) {
+    const fileNode = await this.getPublicFileNode(token, fileId);
+    const filePath = this.getStorageAbsolutePath(fileNode.storageKey);
+
+    if (!existsSync(filePath)) {
+      throw new NotFoundException('Arquivo físico não encontrado.');
+    }
+
+    if (fileNode.mimeType) {
+      res.setHeader('Content-Type', fileNode.mimeType);
+    }
+
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.sendFile(filePath);
+  }
+
+  async servePublicThumbnail(token: string, fileId: number, res: Response) {
+    const fileNode = await this.getPublicFileNode(token, fileId);
+
+    if (!fileNode.thumbKey) {
+      throw new NotFoundException('Thumbnail não encontrado.');
+    }
+
+    const thumbnailPath = this.storageKeyToAbsPath(
+      fileNode.thumbKey.replace(/^_thumbnails\//, ''),
+      this.thumbnailRoot,
+    );
+
+    if (!existsSync(thumbnailPath)) {
+      throw new NotFoundException('Thumbnail não encontrado.');
+    }
+
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.sendFile(thumbnailPath);
+  }
+
   async downloadPublicZip(token: string, res: Response) {
     const share = await this.getValidPublicShareByToken(token);
 
@@ -283,6 +366,151 @@ export class StoragePublicService {
     await archive.finalize();
   }
 
+  async downloadPublicSelectedZip(
+    token: string,
+    nodeIds: number[],
+    res: Response,
+  ) {
+    const share = await this.getValidPublicShareByToken(token);
+
+    if (!share.allowDownload) {
+      throw new ForbiddenException('Download nÃ£o permitido.');
+    }
+
+    if (!Array.isArray(nodeIds) || nodeIds.length === 0) {
+      throw new BadRequestException('Nenhum arquivo selecionado.');
+    }
+
+    const uniqueIds = Array.from(new Set(nodeIds));
+
+    for (const nodeId of uniqueIds) {
+      await this.assertNodeInsideSharedTree(share.nodeId, nodeId);
+    }
+
+    const nodes = await this.prisma.storageNode.findMany({
+      where: {
+        id: { in: uniqueIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        storageKey: true,
+      },
+    });
+
+    if (nodes.length !== uniqueIds.length) {
+      throw new NotFoundException('Um ou mais itens nÃ£o foram encontrados.');
+    }
+
+    const invalidNode = nodes.find((node) => node.type !== 'file' || !node.storageKey);
+
+    if (invalidNode) {
+      throw new BadRequestException('A seleÃ§Ã£o deve conter apenas arquivos vÃ¡lidos.');
+    }
+
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="arquivos-selecionados.zip"',
+    );
+    res.setHeader('Content-Type', 'application/zip');
+
+    const archive = archiver.default('zip', {
+      zlib: { level: 9 },
+    });
+
+    archive.on('error', (err) => {
+      throw err;
+    });
+
+    archive.pipe(res);
+
+    const usedNames = new Map<string, number>();
+
+    for (const node of nodes) {
+      const filePath = this.getStorageAbsolutePath(node.storageKey);
+
+      if (!existsSync(filePath)) {
+        continue;
+      }
+
+      const archiveName = this.buildUniqueArchiveName(node.name, usedNames);
+      archive.file(filePath, { name: archiveName });
+    }
+
+    await archive.finalize();
+  }
+
+  async createPublicFolder(
+    token: string,
+    name: string,
+    parentId?: number,
+  ) {
+    const share = await this.getValidPublicShareByToken(token);
+
+    if (!share.allowCreateFolders) {
+      throw new ForbiddenException('Criação de pastas não permitida.');
+    }
+
+    const targetParentId = parentId ?? share.nodeId;
+
+    await this.assertNodeInsideSharedTree(share.nodeId, targetParentId);
+
+    const parentNode = await this.prisma.storageNode.findUnique({
+      where: { id: targetParentId },
+      select: { type: true },
+    });
+
+    if (!parentNode || parentNode.type !== 'folder') {
+      throw new BadRequestException('A pasta de destino é inválida.');
+    }
+
+    return this.storageService.createFolder(
+      {
+        name,
+        eventId: share.node.eventId,
+        parentId: targetParentId,
+      },
+      null,
+    );
+  }
+
+  async uploadPublicFiles(
+    token: string,
+    files: Express.Multer.File[],
+    parentId?: number,
+  ) {
+    const share = await this.getValidPublicShareByToken(token);
+
+    if (!share.allowUpload) {
+      throw new ForbiddenException('Envio de arquivos não permitido.');
+    }
+
+    const targetParentId = parentId ?? share.nodeId;
+
+    await this.assertNodeInsideSharedTree(share.nodeId, targetParentId);
+
+    const parentNode = await this.prisma.storageNode.findUnique({
+      where: { id: targetParentId },
+      select: { type: true },
+    });
+
+    if (!parentNode || parentNode.type !== 'folder') {
+      throw new BadRequestException('A pasta de destino é inválida.');
+    }
+
+    return Promise.all(
+      files.map((file) =>
+        this.storageService.uploadFile(
+          share.node.eventId,
+          targetParentId,
+          file,
+          null,
+        ),
+      ),
+    );
+  }
+
   async getValidPublicShareByToken(token: string) {
     const share = await this.prisma.storageNodePublicShare.findUnique({
       where: { token },
@@ -314,6 +542,26 @@ export class StoragePublicService {
     }
 
     return share;
+  }
+
+  async getPublicFileNode(token: string, fileId: number) {
+    const share = await this.getValidPublicShareByToken(token);
+
+    await this.assertNodeInsideSharedTree(share.nodeId, fileId);
+
+    const fileNode = await this.prisma.storageNode.findUnique({
+      where: { id: fileId },
+    });
+
+    if (!fileNode) {
+      throw new NotFoundException('Arquivo não encontrado.');
+    }
+
+    if (fileNode.type !== 'file') {
+      throw new BadRequestException('O item informado não é um arquivo.');
+    }
+
+    return fileNode;
   }
 
   async assertNodeInsideSharedTree(sharedRootId: number, targetNodeId: number) {
@@ -459,6 +707,6 @@ export class StoragePublicService {
       throw new NotFoundException('Arquivo sem storageKey.');
     }
 
-    return join('C:\\event-manager-storage', storageKey);
+    return this.storageKeyToAbsPath(storageKey);
   }
 }

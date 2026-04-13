@@ -7,6 +7,9 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { createReadStream, existsSync } from 'fs';
+import type { Response } from 'express';
+import * as archiver from 'archiver';
 import sharp from 'sharp';
 import ffmpeg from 'fluent-ffmpeg';
 
@@ -186,6 +189,24 @@ export class StorageService {
     }
 
     return `_thumbnails/${storageKey.replace(/\.[^.]+$/, '.jpg')}`;
+  }
+
+  private buildUniqueArchiveName(
+    originalName: string,
+    usedNames: Map<string, number>,
+  ) {
+    const ext = path.extname(originalName);
+    const base = path.basename(originalName, ext);
+    const current = usedNames.get(originalName) ?? 0;
+
+    if (current === 0 && !usedNames.has(originalName)) {
+      usedNames.set(originalName, 1);
+      return originalName;
+    }
+
+    const next = current + 1;
+    usedNames.set(originalName, next);
+    return `${base} (${next})${ext}`;
   }
 
   async createFolder(body: CreateFolderInput, userId: number | null) {
@@ -621,6 +642,67 @@ export class StorageService {
       name: node.name,
       mimeType: node.mimeType,
     };
+  }
+
+  async downloadSelectedFilesZip(nodeIds: number[], res: Response) {
+    if (!Array.isArray(nodeIds) || nodeIds.length === 0) {
+      throw new BadRequestException('Nenhum arquivo selecionado.');
+    }
+
+    const uniqueIds = Array.from(new Set(nodeIds));
+
+    const nodes = await this.prisma.storageNode.findMany({
+      where: {
+        id: { in: uniqueIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        storageKey: true,
+      },
+    });
+
+    if (nodes.length !== uniqueIds.length) {
+      throw new NotFoundException('Um ou mais itens nÃ£o foram encontrados.');
+    }
+
+    const invalidNode = nodes.find((node) => node.type !== 'file' || !node.storageKey);
+
+    if (invalidNode) {
+      throw new BadRequestException('A seleÃ§Ã£o deve conter apenas arquivos vÃ¡lidos.');
+    }
+
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="arquivos-selecionados.zip"',
+    );
+    res.setHeader('Content-Type', 'application/zip');
+
+    const archive = archiver.default('zip', {
+      zlib: { level: 9 },
+    });
+
+    archive.on('error', (err) => {
+      throw err;
+    });
+
+    archive.pipe(res);
+
+    const usedNames = new Map<string, number>();
+
+    for (const node of nodes) {
+      const filePath = this.storageKeyToAbsPath(node.storageKey!);
+
+      if (!existsSync(filePath)) {
+        continue;
+      }
+
+      const archiveName = this.buildUniqueArchiveName(node.name, usedNames);
+      archive.file(filePath, { name: archiveName });
+    }
+
+    await archive.finalize();
   }
 
   async renameNode(nodeId: number, newName: string, _userId: number | null) {

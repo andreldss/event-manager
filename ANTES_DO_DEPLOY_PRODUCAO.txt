@@ -1,0 +1,151 @@
+CHECKLIST ANTES DO DEPLOY EM PRODUCAO
+
+Este projeto ainda esta em fase de desenvolvimento. Antes de publicar em producao, revise os pontos abaixo.
+
+1. SEGREDOS E VARIAVEIS DE AMBIENTE
+
+- Definir um JWT_SECRET forte, longo e unico.
+- Definir CLIENT_ORIGIN com a URL real do frontend de producao.
+- Definir NEXT_PUBLIC_API_URL com a URL real da API de producao.
+- Definir STORAGE_ROOT para um caminho persistente e seguro no servidor.
+- Garantir que arquivos .env nao sejam versionados com segredos reais.
+
+2. HTTPS E COOKIES
+
+- Publicar frontend e backend com HTTPS.
+- Confirmar que o cookie access_token esta sendo enviado com secure=true em producao.
+- Revisar a estrategia de sameSite conforme o dominio final:
+  - Se frontend e backend estiverem no mesmo site, lax costuma funcionar.
+  - Se houver cross-site real, validar se sera necessario none + secure.
+
+3. VALIDACAO DE ENTRADA
+
+- Adicionar ValidationPipe global no NestJS.
+- Adicionar class-validator nos DTOs principais:
+  - auth
+  - users
+  - clients
+  - events
+  - financial
+  - storage
+  - public-share
+- Habilitar whitelist e forbidNonWhitelisted.
+
+4. RATE LIMIT E PROTECAO CONTRA ABUSO
+
+- Adicionar rate limit em /auth/login.
+- Adicionar rate limit nas rotas publicas de share:
+  - GET /storage/public/:token
+  - GET /storage/public/:token/items
+  - POST /storage/public/:token/files
+  - POST /storage/public/:token/folder
+  - POST /storage/public/:token/download-zip
+- Considerar bloquear tentativas repetidas por IP em login.
+
+5. HARDENING DA API
+
+- Adicionar helmet no bootstrap da API.
+- Revisar CORS para aceitar apenas origens necessarias.
+- Nao deixar localhost como origem liberada em ambiente produtivo, a menos que seja intencional.
+- Revisar logs para nao expor tokens, cookies ou dados sensiveis.
+
+6. REVISAO DE CONTROLE DE ACESSO
+
+- Revisar novamente todos os controllers antes do deploy final.
+- Confirmar que cada rota privada usa:
+  - JwtAuthGuard
+  - hasAccess quando necessario
+- Confirmar que rotas publicas de storage liberam apenas o que o link permite.
+- Validar que permissoes publicas de upload e criacao de pasta sao realmente desejadas.
+
+7. STORAGE E ARQUIVOS
+
+- Definir limite de tamanho de upload.
+- Definir lista de tipos de arquivo permitidos ou pelo menos lista de bloqueio.
+- Validar comportamento para arquivos muito grandes.
+- Confirmar que STORAGE_ROOT nao aponta para pasta temporaria.
+- Testar:
+  - upload
+  - download simples
+  - download em ZIP
+  - thumbnails
+  - links publicos
+- Garantir backup ou estrategia de recuperacao dos arquivos armazenados.
+
+8. LINKS PUBLICOS
+
+- Revisar expiracao padrao dos links publicos.
+- Considerar protecao adicional para links publicos sensiveis:
+  - senha
+  - expiracao curta
+  - revogacao rapida
+  - auditoria
+- Se links publicos permitirem escrita, considerar:
+  - limite de upload
+  - auditoria
+  - rastreio por IP
+
+9. BANCO DE DADOS E MIGRATIONS
+
+- Verificar se todas as migrations foram aplicadas corretamente.
+- Garantir que nao existe migration falhada em _prisma_migrations.
+- Nao alterar historico antigo de migration depois de ambientes compartilhados existirem.
+- Fazer backup do banco antes do primeiro deploy de producao.
+
+10. MONITORAMENTO E OPERACAO
+
+- Configurar logs estruturados.
+- Configurar monitoramento de erros.
+- Configurar alerta para falhas de login, erro 500 e problemas de disco/storage.
+- Monitorar uso de CPU, memoria, disco e espaco de storage.
+
+11. FRONTEND
+
+- Confirmar que o frontend usa NEXT_PUBLIC_API_URL correto.
+- Revisar qualquer fetch hardcoded restante para localhost.
+- Testar login, logout e expiracao de sessao em ambiente parecido com producao.
+
+12. TESTES MINIMOS ANTES DE SUBIR
+
+- Login e logout funcionando.
+- Controle de acesso por permissao funcionando.
+- CRUD de:
+  - clientes
+  - usuarios
+  - eventos
+  - financeiro
+- Storage interno:
+  - criar pasta
+  - upload
+  - mover
+  - renomear
+  - excluir
+  - download ZIP de selecionados
+- Storage publico:
+  - abrir link
+  - navegar em subpastas
+  - download de arquivo
+  - download ZIP
+  - download ZIP de selecionados
+  - upload publico, se habilitado
+  - criar pasta publica, se habilitado
+
+13. ITENS RECOMENDADOS QUE AINDA VALEM IMPLEMENTAR
+
+- ValidationPipe global.
+- DTOs com validacao real.
+- Helmet.
+- Rate limiting.
+- Auditoria de acoes sensiveis.
+- Politica de upload mais restrita.
+
+RESUMO
+
+Se fosse priorizar antes do deploy, a ordem seria:
+
+1. HTTPS + variaveis corretas.
+2. ValidationPipe + validacao de DTO.
+3. Rate limit em login e rotas publicas.
+4. Helmet.
+5. Revisao final de permissao e links publicos.
+6. Testes completos de storage e auth.

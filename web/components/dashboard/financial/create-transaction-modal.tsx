@@ -22,7 +22,7 @@ export default function CreateTransactionModal({
   eventId,
 }: Props) {
   const [type, setType] = useState<"income" | "expense">("expense");
-  const [status, setStatus] = useState<"planned" | "settled">("planned");
+  const [status, setStatus] = useState<"planned" | "settled">("settled");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -43,7 +43,7 @@ export default function CreateTransactionModal({
 
   async function loadCategories() {
     try {
-      const response = await apiFetch("/financial-categories", "GET");
+      const response = await apiFetch("/financial-category", "GET");
       setCategories(Array.isArray(response) ? response : []);
     } catch {
       setCategories([]);

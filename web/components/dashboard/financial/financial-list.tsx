@@ -1,26 +1,58 @@
 import type { Transaction } from "@/types/financial";
+import { Ellipsis, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   transactions: Transaction[];
   isLoading: boolean;
+  isFetchingMore?: boolean;
+  hasMore?: boolean;
+  loadMoreRef?: React.RefObject<HTMLDivElement | null>;
   settlingId: number | null;
   onMarkAsPaid?: (transactionId: number) => void;
   showEventName?: boolean;
   formatBRL: (value: number) => string;
   formatDate: (value?: string | null) => string;
   parseAmount: (value: number | string) => number;
+  totalCount?: number;
+  canManageTransactions?: boolean;
+  onEditTransaction?: (transaction: Transaction) => void;
+  onDeleteTransaction?: (transaction: Transaction) => void;
 };
 
 export default function FinancialTransactionsList({
   transactions,
   isLoading,
+  isFetchingMore = false,
+  hasMore = false,
+  loadMoreRef,
   settlingId,
   onMarkAsPaid,
   showEventName = false,
   formatBRL,
   formatDate,
   parseAmount,
+  totalCount,
+  canManageTransactions = false,
+  onEditTransaction,
+  onDeleteTransaction,
 }: Props) {
+  const effectiveTotal = totalCount ?? transactions.length;
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      const target = event.target as HTMLElement;
+      if (!menuRef.current?.contains(target)) {
+        setOpenMenuId(null);
+      }
+    }
+
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, []);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <div className="border-b border-slate-100 px-4 py-3">
@@ -31,8 +63,8 @@ export default function FinancialTransactionsList({
           <p className="mt-1 text-sm text-slate-500">
             {isLoading
               ? "Carregando movimentações..."
-              : `${transactions.length} ${
-                  transactions.length === 1
+              : `${effectiveTotal} ${
+                  effectiveTotal === 1
                     ? "movimentação encontrada"
                     : "movimentações encontradas"
                 }`}
@@ -88,6 +120,12 @@ export default function FinancialTransactionsList({
                             Recebido/Pago
                           </span>
                         )}
+
+                        {t.sourceType === "collection" && (
+                          <span className="rounded-full border border-sky-200 bg-sky-100/70 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                            Coleta
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
@@ -138,11 +176,61 @@ export default function FinancialTransactionsList({
                               : "Saída"}
                         </p>
                       </div>
+
+                      {canManageTransactions && (
+                        <div ref={openMenuId === t.id ? menuRef : undefined} className="relative">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenMenuId((prev) => (prev === t.id ? null : t.id))
+                            }
+                            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                          >
+                            <Ellipsis size={16} />
+                          </button>
+
+                          {openMenuId === t.id && (
+                            <div className="absolute right-0 top-10 z-20 min-w-[170px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  onEditTransaction?.(t);
+                                }}
+                                className="flex w-full cursor-pointer items-center gap-2 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                              >
+                                <Pencil size={15} />
+                                Editar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  onDeleteTransaction?.(t);
+                                }}
+                                className="flex w-full cursor-pointer items-center gap-2 px-4 py-3 text-left text-sm text-rose-700 transition hover:bg-rose-50"
+                              >
+                                <Trash2 size={15} />
+                                Excluir
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               );
             })}
+
+            {hasMore && <div ref={loadMoreRef} className="h-1 w-full" />}
+
+            {isFetchingMore && (
+              <div className="px-4 py-4 text-center text-sm text-slate-500">
+                Carregando mais movimentações...
+              </div>
+            )}
           </div>
         )}
       </div>

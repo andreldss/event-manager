@@ -16,21 +16,34 @@ import { CreateClientDto, UpdateClientDto } from './dto/client.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { hasAccess } from '../common/auth/has-access.js';
 import { AuthUser } from 'src/common/types/auth-user.js';
+import { AuditService } from '../audit/audit.service.js';
 
 @UseGuards(JwtAuthGuard)
 @Controller('clients')
 export class ClientsController {
-  constructor(private clientService: ClientsService) {}
+  constructor(
+    private clientService: ClientsService,
+    private auditService: AuditService,
+  ) {}
 
   @Post()
-  register(@Req() req: { user: AuthUser }, @Body() body: CreateClientDto) {
+  async register(@Req() req: any, @Body() body: CreateClientDto) {
     if (!hasAccess(req.user, 'recordsAccess', 'manage')) {
       throw new ForbiddenException(
         'Você não tem permissão para criar cadastros.',
       );
     }
 
-    return this.clientService.create(body);
+    const created = await this.clientService.create(body);
+    await this.auditService.log({
+      module: 'clients',
+      action: 'create',
+      entityType: 'client',
+      entityId: created.id,
+      afterData: created,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return created;
   }
 
   @Get()
@@ -60,8 +73,8 @@ export class ClientsController {
   }
 
   @Patch(':id')
-  update(
-    @Req() req: { user: AuthUser },
+  async update(
+    @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateClientDto,
   ) {
@@ -71,12 +84,23 @@ export class ClientsController {
       );
     }
 
-    return this.clientService.update(id, body);
+    const beforeData = await this.clientService.getOne(id);
+    const updated = await this.clientService.update(id, body);
+    await this.auditService.log({
+      module: 'clients',
+      action: 'update',
+      entityType: 'client',
+      entityId: id,
+      beforeData,
+      afterData: updated,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return updated;
   }
 
   @Delete(':id')
-  delete(
-    @Req() req: { user: AuthUser },
+  async delete(
+    @Req() req: any,
     @Param('id', ParseIntPipe) id: number,
   ) {
     if (!hasAccess(req.user, 'recordsAccess', 'manage')) {
@@ -85,6 +109,17 @@ export class ClientsController {
       );
     }
 
-    return this.clientService.delete(id);
+    const beforeData = await this.clientService.getOne(id);
+    const deleted = await this.clientService.delete(id);
+    await this.auditService.log({
+      module: 'clients',
+      action: 'delete',
+      entityType: 'client',
+      entityId: id,
+      beforeData,
+      afterData: deleted,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return deleted;
   }
 }

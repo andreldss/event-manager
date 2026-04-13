@@ -57,7 +57,7 @@ export default function OverviewGroups({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder="Ex: 301, 302..."
-          className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-slate-200 transition"
+          className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-slate-200 transition"
         />
         <button
           onClick={add}
@@ -70,7 +70,7 @@ export default function OverviewGroups({
 
       <div className="flex-1 min-h-0 rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col">
         <div className="px-4 pt-3 pb-2 border-b border-slate-100">
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
             Grupos {groups.length > 0 && `· ${groups.length}`}
           </span>
         </div>
@@ -83,7 +83,7 @@ export default function OverviewGroups({
           )}
 
           {groups.length === 0 && (
-            <p className="px-4 py-4 text-sm text-slate-400">
+            <p className="px-4 py-4 text-sm text-slate-500">
               Nenhum grupo ainda.
             </p>
           )}
@@ -97,7 +97,7 @@ export default function OverviewGroups({
               <button
                 onClick={() => remove(item.id)}
                 disabled={loading}
-                className="opacity-0 group-hover:opacity-100 transition p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 disabled:opacity-30 cursor-pointer"
+                className="opacity-0 group-hover:opacity-100 transition p-1 rounded-lg hover:bg-rose-50 text-slate-500 hover:text-rose-500 disabled:opacity-30 cursor-pointer"
               >
                 <Trash2 size={13} />
               </button>

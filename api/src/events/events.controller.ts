@@ -22,21 +22,35 @@ import { CreateGroupItemDto } from './dto/group.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { hasAccess } from '../common/auth/has-access.js';
 import { AuthUser } from 'src/common/types/auth-user.js';
+import { AuditService } from '../audit/audit.service.js';
 
 @UseGuards(JwtAuthGuard)
 @Controller('events')
 export class EventsController {
-  constructor(private eventService: EventsService) {}
+  constructor(
+    private eventService: EventsService,
+    private auditService: AuditService,
+  ) {}
 
   @Post('create')
-  create(@Req() req: { user: AuthUser }, @Body() body: CreateEventDto) {
+  async create(@Req() req: any, @Body() body: CreateEventDto) {
     if (!hasAccess(req.user, 'eventsAccess', 'manage')) {
       throw new ForbiddenException(
         'Você não tem permissão para criar eventos.',
       );
     }
 
-    return this.eventService.create(body);
+    const created = await this.eventService.create(body);
+    await this.auditService.log({
+      module: 'events',
+      action: 'create',
+      entityType: 'event',
+      entityId: created.id,
+      eventId: created.id,
+      afterData: created,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return created;
   }
 
   @Get()
@@ -60,9 +74,59 @@ export class EventsController {
     return this.eventService.getById(id);
   }
 
+  @Patch(':id')
+  async update(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: CreateEventDto,
+  ) {
+    if (!hasAccess(req.user, 'eventsAccess', 'manage')) {
+      throw new ForbiddenException(
+        'VocÃª nÃ£o tem permissÃ£o para editar eventos.',
+      );
+    }
+
+    const beforeData = await this.eventService.getById(id);
+    const updated = await this.eventService.update(id, body);
+    await this.auditService.log({
+      module: 'events',
+      action: 'update',
+      entityType: 'event',
+      entityId: id,
+      eventId: id,
+      beforeData,
+      afterData: updated,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return updated;
+  }
+
+  @Delete(':id')
+  async remove(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    if (!hasAccess(req.user, 'eventsAccess', 'manage')) {
+      throw new ForbiddenException(
+        'VocÃª nÃ£o tem permissÃ£o para excluir eventos.',
+      );
+    }
+
+    const beforeData = await this.eventService.getById(id);
+    const removed = await this.eventService.remove(id);
+    await this.auditService.log({
+      module: 'events',
+      action: 'delete',
+      entityType: 'event',
+      entityId: id,
+      eventId: id,
+      beforeData,
+      afterData: removed,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return removed;
+  }
+
   @Post('participants')
-  addParticipant(
-    @Req() req: { user: AuthUser },
+  async addParticipant(
+    @Req() req: any,
     @Body() body: CreateParticipantDto,
   ) {
     if (!hasAccess(req.user, 'eventsAccess', 'manage')) {
@@ -71,11 +135,21 @@ export class EventsController {
       );
     }
 
-    return this.eventService.addParticipant(
+    const created = await this.eventService.addParticipant(
       body.eventId,
       body.name,
       body.groupId ?? null,
     );
+    await this.auditService.log({
+      module: 'events',
+      action: 'participant_create',
+      entityType: 'participant',
+      entityId: created.id,
+      eventId: body.eventId,
+      afterData: created,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return created;
   }
 
   @Get(':eventId/participants')
@@ -90,9 +164,37 @@ export class EventsController {
     return this.eventService.getParticipants(eventId);
   }
 
+  @Delete(':eventId/participants/:participantId')
+  async deleteParticipant(
+    @Req() req: any,
+    @Param('eventId', ParseIntPipe) eventId: number,
+    @Param('participantId', ParseIntPipe) participantId: number,
+  ) {
+    if (!hasAccess(req.user, 'eventsAccess', 'manage')) {
+      throw new ForbiddenException(
+        'VocÃª nÃ£o tem permissÃ£o para alterar participantes.',
+      );
+    }
+
+    const deleted = await this.eventService.deleteParticipant(
+      eventId,
+      participantId,
+    );
+    await this.auditService.log({
+      module: 'events',
+      action: 'participant_delete',
+      entityType: 'participant',
+      entityId: participantId,
+      eventId,
+      afterData: deleted,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return deleted;
+  }
+
   @Put(':eventId/collections')
-  upsertCollection(
-    @Req() req: { user: AuthUser },
+  async upsertCollection(
+    @Req() req: any,
     @Param('eventId', ParseIntPipe) eventId: number,
     @Body() body: UpsertCollectionDto,
   ) {
@@ -102,12 +204,23 @@ export class EventsController {
       );
     }
 
-    return this.eventService.upsertCollectionPayment(
+    const result = await this.eventService.upsertCollectionPayment(
       eventId,
       body.participantId,
       body.referenceMonth,
       body.amount,
     );
+    await this.auditService.log({
+      module: 'events',
+      action: 'collection_upsert',
+      entityType: 'collection',
+      entityId: 'id' in result ? result.id : null,
+      eventId,
+      afterData: result,
+      metadata: body,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return result;
   }
 
   @Get(':eventId/collections')
@@ -135,8 +248,8 @@ export class EventsController {
   }
 
   @Post(':eventId/event_payment_months')
-  addEventPaymentMonth(
-    @Req() req: { user: AuthUser },
+  async addEventPaymentMonth(
+    @Req() req: any,
     @Param('eventId', ParseIntPipe) eventId: number,
     @Body() body: CreatePaymentMonthDto,
   ) {
@@ -146,15 +259,25 @@ export class EventsController {
       );
     }
 
-    return this.eventService.createEventPaymentMonths(
+    const created = await this.eventService.createEventPaymentMonths(
       eventId,
       body.startMonth,
       body.termMonths,
     );
+    await this.auditService.log({
+      module: 'events',
+      action: 'payment_months_create',
+      entityType: 'event_payment_months',
+      eventId,
+      afterData: created,
+      metadata: body,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return created;
   }
 
   @Post(':eventId/checklist')
-  createChecklistItem(
+  async createChecklistItem(
     @Req() req: any,
     @Param('eventId', ParseIntPipe) eventId: number,
     @Body() body: CreateChecklistItemDto,
@@ -165,11 +288,21 @@ export class EventsController {
       );
     }
 
-    return this.eventService.createEventChecklist(
+    const created = await this.eventService.createEventChecklist(
       eventId,
       body.text,
       body.date,
     );
+    await this.auditService.log({
+      module: 'events',
+      action: 'checklist_create',
+      entityType: 'event_checklist',
+      entityId: created.id,
+      eventId,
+      afterData: created,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return created;
   }
 
   @Get(':eventId/checklist')
@@ -185,7 +318,7 @@ export class EventsController {
   }
 
   @Patch(':eventId/checklist/:itemId/done')
-  doneChecklistItem(
+  async doneChecklistItem(
     @Req() req: any,
     @Param('itemId', ParseIntPipe) itemId: number,
   ) {
@@ -195,11 +328,20 @@ export class EventsController {
       );
     }
 
-    return this.eventService.doneEventChecklistItem(itemId);
+    const done = await this.eventService.doneEventChecklistItem(itemId);
+    await this.auditService.log({
+      module: 'events',
+      action: 'checklist_done',
+      entityType: 'event_checklist',
+      entityId: itemId,
+      afterData: done,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return done;
   }
 
   @Delete(':eventId/checklist/:itemId')
-  deleteChecklistItem(
+  async deleteChecklistItem(
     @Req() req: any,
     @Param('itemId', ParseIntPipe) itemId: number,
   ) {
@@ -209,11 +351,20 @@ export class EventsController {
       );
     }
 
-    return this.eventService.deleteEventChecklistItem(itemId);
+    const deleted = await this.eventService.deleteEventChecklistItem(itemId);
+    await this.auditService.log({
+      module: 'events',
+      action: 'checklist_delete',
+      entityType: 'event_checklist',
+      entityId: itemId,
+      afterData: deleted,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return deleted;
   }
 
   @Post(':eventId/group')
-  createChecklistGroup(
+  async createChecklistGroup(
     @Req() req: any,
     @Param('eventId', ParseIntPipe) eventId: number,
     @Body() body: CreateGroupItemDto,
@@ -224,7 +375,17 @@ export class EventsController {
       );
     }
 
-    return this.eventService.createEventGroup(eventId, body.text);
+    const created = await this.eventService.createEventGroup(eventId, body.text);
+    await this.auditService.log({
+      module: 'events',
+      action: 'group_create',
+      entityType: 'event_group',
+      entityId: created.id,
+      eventId,
+      afterData: created,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return created;
   }
 
   @Get(':eventId/group')
@@ -237,7 +398,7 @@ export class EventsController {
   }
 
   @Delete(':eventId/group/:itemId')
-  deleteGroupItem(
+  async deleteGroupItem(
     @Req() req: any,
     @Param('itemId', ParseIntPipe) itemId: number,
   ) {
@@ -247,6 +408,15 @@ export class EventsController {
       );
     }
 
-    return this.eventService.deleteEventGroupItem(itemId);
+    const deleted = await this.eventService.deleteEventGroupItem(itemId);
+    await this.auditService.log({
+      module: 'events',
+      action: 'group_delete',
+      entityType: 'event_group',
+      entityId: itemId,
+      afterData: deleted,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return deleted;
   }
 }

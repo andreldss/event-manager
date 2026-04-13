@@ -83,7 +83,10 @@ export function EventChart({
     setIsLoading(true);
 
     try {
-      const response = await apiFetch(`/financial/${eventId}/cashflow`, "GET");
+      const response = await apiFetch(
+        `/financial/event/${eventId}/cashflow`,
+        "GET",
+      );
       setData(Array.isArray(response) ? response : []);
     } catch (err) {
       if (err instanceof Error) {

@@ -6,6 +6,7 @@ import {
   FilePenLine,
   FolderClosed,
   LayoutDashboard,
+  ScrollText,
   PartyPopper,
 } from "lucide-react";
 import SidebarItem from "./side-bar-item";
@@ -72,6 +73,15 @@ export default function Dashboard({ children }: { children: React.ReactNode }) {
             icon={<FilePenLine size={20} />}
             label={"Cadastros"}
             href={"/dashboard/records"}
+            alert={false}
+          />
+        )}
+
+        {user?.isAdmin && (
+          <SidebarItem
+            icon={<ScrollText size={20} />}
+            label={"Logs"}
+            href={"/dashboard/logs"}
             alert={false}
           />
         )}

@@ -2,6 +2,7 @@
 
 import { apiFetch } from "@/lib/api";
 import type { EventGroup } from "@/types/group";
+import { Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -61,12 +62,14 @@ type Props = {
   eventId: number;
   groups: EventGroup[];
   onCollectionsFinancialChanged: () => void;
+  financialRefreshTrigger?: number;
 };
 
 export default function CollectionsTab({
   eventId,
   groups,
   onCollectionsFinancialChanged,
+  financialRefreshTrigger = 0,
 }: Props) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | "all">("all");
@@ -88,6 +91,7 @@ export default function CollectionsTab({
   const [monthPage, setMonthPage] = useState(0);
 
   const exportRef = useRef<HTMLDivElement>(null);
+  const skipNextFinancialRefreshRef = useRef(false);
 
   const filteredParticipants =
     selectedGroupId === "all"
@@ -128,6 +132,17 @@ export default function CollectionsTab({
     return String(v);
   }
 
+  function getDisplayValue(participantId: number, monthKey: string) {
+    const raw = getDraftValue(participantId, monthKey).trim();
+    const parsed = parseMoney(raw);
+
+    if (!raw || parsed === null || parsed === 0) {
+      return "";
+    }
+
+    return formatBRL(parsed);
+  }
+
   async function commitCell(participantId: number, monthKey: string) {
     const key = getKey(participantId, monthKey);
     const text = draft[key] ?? "";
@@ -156,6 +171,7 @@ export default function CollectionsTab({
         amount: parsed ?? 0,
       });
 
+      skipNextFinancialRefreshRef.current = true;
       onCollectionsFinancialChanged();
     } catch (err) {
       if (err instanceof Error) setError(err.message);
@@ -183,6 +199,32 @@ export default function CollectionsTab({
     } catch (err) {
       if (err instanceof Error) setError(err.message);
       else setError("Falha ao criar participante. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deleteParticipant(participant: Participant) {
+    const confirmed = window.confirm(
+      `Excluir o aluno "${participant.name}"? Os recolhimentos vinculados também serão removidos.`,
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await apiFetch(
+        `/events/${eventId}/participants/${participant.id}`,
+        "DELETE",
+      );
+      await Promise.all([fetchParticipants(), fetchCollections()]);
+      skipNextFinancialRefreshRef.current = true;
+      onCollectionsFinancialChanged();
+    } catch (err) {
+      if (err instanceof Error) setError(err.message);
+      else setError("Falha ao excluir aluno.");
     } finally {
       setLoading(false);
     }
@@ -340,8 +382,236 @@ export default function CollectionsTab({
     }
   }
 
+  async function exportPdfFallback() {
+    if (!logoDataUrl) {
+      throw new Error("Logo indisponível");
+    }
+
+    const exportRoot = document.createElement("div");
+    exportRoot.style.position = "fixed";
+    exportRoot.style.left = "-10000px";
+    exportRoot.style.top = "0";
+    exportRoot.style.width = "1400px";
+    exportRoot.style.padding = "24px";
+    exportRoot.style.background = "#ffffff";
+    exportRoot.style.zIndex = "-1";
+
+    try {
+      const reportBox = document.createElement("div");
+      reportBox.style.border = "1px solid #111111";
+      reportBox.style.background = "#ffffff";
+
+      const header = document.createElement("div");
+      header.style.display = "flex";
+      header.style.alignItems = "center";
+      header.style.justifyContent = "space-between";
+      header.style.padding = "16px 18px";
+      header.style.borderBottom = "1px solid #111111";
+      header.style.background = "#ffffff";
+
+      const left = document.createElement("div");
+      left.style.display = "flex";
+      left.style.alignItems = "center";
+      left.style.minWidth = "220px";
+
+      const logo = document.createElement("img");
+      logo.src = logoDataUrl;
+      logo.alt = "Logo";
+      logo.style.width = "190px";
+      logo.style.height = "70px";
+      logo.style.objectFit = "contain";
+      left.appendChild(logo);
+
+      const title = document.createElement("div");
+      title.textContent = "Relatório de Recolhimentos";
+      title.style.flex = "1";
+      title.style.textAlign = "center";
+      title.style.fontSize = "16px";
+      title.style.fontWeight = "700";
+      title.style.color = "#111111";
+      title.style.fontFamily = "Arial, sans-serif";
+
+      const right = document.createElement("div");
+      right.textContent = new Date().toLocaleString("pt-BR");
+      right.style.minWidth = "220px";
+      right.style.textAlign = "right";
+      right.style.fontSize = "11px";
+      right.style.color = "#555555";
+      right.style.fontFamily = "Arial, sans-serif";
+
+      header.appendChild(left);
+      header.appendChild(title);
+      header.appendChild(right);
+      reportBox.appendChild(header);
+
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+      table.style.tableLayout = "fixed";
+      table.style.fontFamily = "Arial, sans-serif";
+      table.style.fontSize = "12px";
+      table.style.color = "#111111";
+
+      const thead = document.createElement("thead");
+      const headRow = document.createElement("tr");
+
+      const participantHead = document.createElement("th");
+      participantHead.textContent = "Aluno";
+      participantHead.style.width = "240px";
+      participantHead.style.padding = "8px 12px";
+      participantHead.style.textAlign = "left";
+      participantHead.style.borderRight = "1px solid #111111";
+      participantHead.style.borderBottom = "1px solid #111111";
+      participantHead.style.background = "#ffffff";
+      headRow.appendChild(participantHead);
+
+      visibleMonths.forEach((month) => {
+        const th = document.createElement("th");
+        th.textContent = month.label;
+        th.style.width = "70px";
+        th.style.padding = "8px 6px";
+        th.style.textAlign = "center";
+        th.style.borderRight = "1px solid #111111";
+        th.style.borderBottom = "1px solid #111111";
+        th.style.background = "#ffffff";
+        headRow.appendChild(th);
+      });
+
+      const totalHead = document.createElement("th");
+      totalHead.textContent = "Total";
+      totalHead.style.width = "90px";
+      totalHead.style.padding = "8px 12px";
+      totalHead.style.textAlign = "right";
+      totalHead.style.borderBottom = "1px solid #111111";
+      totalHead.style.background = "#ffffff";
+      headRow.appendChild(totalHead);
+
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      filteredParticipants.forEach((participant, index) => {
+        const row = document.createElement("tr");
+
+        const nameCell = document.createElement("td");
+        nameCell.textContent = participant.name;
+        nameCell.style.padding = "6px 12px";
+        nameCell.style.textAlign = "left";
+        nameCell.style.borderRight = "1px solid #111111";
+        nameCell.style.borderBottom =
+          index === filteredParticipants.length - 1
+            ? "0"
+            : "1px solid #111111";
+        row.appendChild(nameCell);
+
+        visibleMonths.forEach((month) => {
+          const td = document.createElement("td");
+          td.textContent = getDisplayValue(participant.id, month.key);
+          td.style.padding = "6px";
+          td.style.textAlign = "center";
+          td.style.whiteSpace = "nowrap";
+          td.style.borderRight = "1px solid #111111";
+          td.style.borderBottom =
+            index === filteredParticipants.length - 1
+              ? "0"
+              : "1px solid #111111";
+          row.appendChild(td);
+        });
+
+        const totalCell = document.createElement("td");
+        totalCell.textContent = formatBRL(
+          totalByParticipant(participant.id, monthsToRender),
+        );
+        totalCell.style.padding = "6px 12px";
+        totalCell.style.textAlign = "right";
+        totalCell.style.whiteSpace = "nowrap";
+        totalCell.style.borderBottom =
+          index === filteredParticipants.length - 1
+            ? "0"
+            : "1px solid #111111";
+        row.appendChild(totalCell);
+
+        tbody.appendChild(row);
+      });
+
+      const totalsRow = document.createElement("tr");
+
+      const totalsLabel = document.createElement("td");
+      totalsLabel.textContent = "Total por mês";
+      totalsLabel.style.padding = "8px 12px";
+      totalsLabel.style.textAlign = "left";
+      totalsLabel.style.fontWeight = "700";
+      totalsLabel.style.borderTop = "1px solid #111111";
+      totalsLabel.style.borderRight = "1px solid #111111";
+      totalsRow.appendChild(totalsLabel);
+
+      visibleMonths.forEach((month) => {
+        const td = document.createElement("td");
+        td.textContent = formatBRL(totalByMonth(month.key));
+        td.style.padding = "8px 6px";
+        td.style.textAlign = "center";
+        td.style.fontWeight = "700";
+        td.style.whiteSpace = "nowrap";
+        td.style.borderTop = "1px solid #111111";
+        td.style.borderRight = "1px solid #111111";
+        totalsRow.appendChild(td);
+      });
+
+      const grandTotalCell = document.createElement("td");
+      grandTotalCell.textContent = formatBRL(grandTotal);
+      grandTotalCell.style.padding = "8px 12px";
+      grandTotalCell.style.textAlign = "right";
+      grandTotalCell.style.fontWeight = "700";
+      grandTotalCell.style.whiteSpace = "nowrap";
+      grandTotalCell.style.borderTop = "1px solid #111111";
+      totalsRow.appendChild(grandTotalCell);
+
+      tbody.appendChild(totalsRow);
+      table.appendChild(tbody);
+      reportBox.appendChild(table);
+      exportRoot.appendChild(reportBox);
+      document.body.appendChild(exportRoot);
+
+      const canvas = await html2canvas(exportRoot, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("l", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const margin = 8;
+      const maxW = pageWidth - margin * 2;
+      const maxH = pageHeight - margin * 2;
+      const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
+
+      const drawWidth = canvas.width * ratio;
+      const drawHeight = canvas.height * ratio;
+      const x = (pageWidth - drawWidth) / 2;
+      const y = margin;
+
+      pdf.addImage(imgData, "PNG", x, y, drawWidth, drawHeight);
+      pdf.save(`recolhimentos-evento-${eventId}.pdf`);
+    } finally {
+      if (exportRoot.parentElement) {
+        exportRoot.parentElement.removeChild(exportRoot);
+      }
+    }
+  }
+
   async function exportPdf() {
-    if (!exportRef.current) return;
+    if (!exportRef.current) {
+      try {
+        await exportPdfFallback();
+      } catch {
+        setError("Falha ao gerar PDF.");
+      }
+      return;
+    }
 
     setError("");
 
@@ -615,7 +885,11 @@ export default function CollectionsTab({
       pdf.addImage(imgData, "PNG", x, y, drawWidth, drawHeight);
       pdf.save(`recolhimentos-evento-${eventId}.pdf`);
     } catch {
-      setError("Falha ao gerar PDF.");
+      try {
+        await exportPdfFallback();
+      } catch {
+        setError("Falha ao gerar PDF.");
+      }
     }
   }
 
@@ -625,6 +899,17 @@ export default function CollectionsTab({
     fetchCollections();
     fetchPaymentsMonths();
   }, [eventId]);
+
+  useEffect(() => {
+    if (!eventId) return;
+
+    if (skipNextFinancialRefreshRef.current) {
+      skipNextFinancialRefreshRef.current = false;
+      return;
+    }
+
+    fetchCollections();
+  }, [eventId, financialRefreshTrigger]);
 
   useEffect(() => {
     loadLogo();
@@ -847,7 +1132,17 @@ export default function CollectionsTab({
                     className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50"
                   >
                     <td className="sticky left-0 z-10 border-r border-slate-200 bg-white px-3 py-2 text-slate-700">
-                      {p.name}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">{p.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => deleteParticipant(p)}
+                          className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                          title="Excluir aluno"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
 
                     {visibleMonths.map((m) => (

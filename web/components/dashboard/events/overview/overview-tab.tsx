@@ -11,6 +11,9 @@ type Props = {
   onGroupsChanged: () => Promise<void>;
   financialRefreshTrigger: number;
   event: Event;
+  canManageEvent?: boolean;
+  onEditEvent?: () => void;
+  onDeleteEvent?: () => void;
 };
 
 export default function OverviewTab({
@@ -19,6 +22,9 @@ export default function OverviewTab({
   onGroupsChanged,
   financialRefreshTrigger,
   event,
+  canManageEvent = false,
+  onEditEvent,
+  onDeleteEvent,
 }: Props) {
   return (
     <div className="grid grid-cols-4 gap-5 min-h-0 h-full">
@@ -32,7 +38,12 @@ export default function OverviewTab({
       </div>
 
       <div className="hidden lg:col-span-3 lg:flex lg:flex-col lg:gap-5 min-h-0 min-w-0">
-        <EventHeader event={event} />
+        <EventHeader
+          event={event}
+          canManage={canManageEvent}
+          onEdit={onEditEvent}
+          onDelete={onDeleteEvent}
+        />
         <div className="min-h-[320px] w-full min-w-0 flex-1">
           <EventChart
             eventId={eventId}

@@ -64,6 +64,8 @@ type Props = {
   node: StorageNode;
   selected: boolean;
   menuOpen: boolean;
+  thumbnailUrl?: string | null;
+  showActions?: boolean;
   onToggleSelect: () => void;
   onMenuToggle: () => void;
   onRename: () => void;
@@ -76,6 +78,8 @@ export default function StorageFileCard({
   node,
   selected,
   menuOpen,
+  thumbnailUrl,
+  showActions = true,
   onToggleSelect,
   onMenuToggle,
   onRename,
@@ -84,9 +88,12 @@ export default function StorageFileCard({
   onPreview,
 }: Props) {
   const hasThumbnail = !!node.thumbKey;
-  const thumbnailUrl = hasThumbnail
-    ? `${API_BASE}/storage/nodes/${node.id}/thumbnail`
-    : null;
+  const resolvedThumbnailUrl =
+    thumbnailUrl !== undefined
+      ? thumbnailUrl
+      : hasThumbnail
+        ? `${API_BASE}/storage/nodes/${node.id}/thumbnail`
+        : null;
   const previewable = isImage(node.mimeType);
 
   return (
@@ -107,7 +114,7 @@ export default function StorageFileCard({
         }
       }}
     >
-      <div className="absolute right-2 top-2 z-20">
+      {showActions && <div className="absolute right-2 top-2 z-20">
         <button
           type="button"
           data-node-menu-button
@@ -159,15 +166,15 @@ export default function StorageFileCard({
             </button>
           </div>
         )}
-      </div>
+      </div>}
 
       <div
         className={`relative w-full bg-gray-50 ${previewable ? "cursor-pointer" : ""}`}
         style={{ aspectRatio: "4/3" }}
       >
-        {thumbnailUrl ? (
+        {resolvedThumbnailUrl ? (
           <img
-            src={thumbnailUrl}
+            src={resolvedThumbnailUrl}
             alt={node.name}
             className="h-full w-full object-cover"
             loading="lazy"
@@ -179,7 +186,7 @@ export default function StorageFileCard({
           </div>
         )}
 
-        {isVideo(node.mimeType) && thumbnailUrl && (
+        {isVideo(node.mimeType) && resolvedThumbnailUrl && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="rounded-full bg-black/50 p-2 text-white backdrop-blur-sm">
               <svg

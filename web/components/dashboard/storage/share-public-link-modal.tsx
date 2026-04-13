@@ -9,6 +9,8 @@ type PublicShareItem = {
   nodeId: number;
   token: string;
   allowDownload: boolean;
+  allowUpload: boolean;
+  allowCreateFolders: boolean;
   expiresAt: string | null;
   revokedAt: string | null;
   createdAt: string;
@@ -28,6 +30,9 @@ export default function SharePublicLinkModal({
   folderName,
 }: Props) {
   const [neverExpire, setNeverExpire] = useState(false);
+  const [allowDownload, setAllowDownload] = useState(true);
+  const [allowUpload, setAllowUpload] = useState(false);
+  const [allowCreateFolders, setAllowCreateFolders] = useState(false);
   const [links, setLinks] = useState<PublicShareItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -42,6 +47,9 @@ export default function SharePublicLinkModal({
 
   function resetState() {
     setNeverExpire(false);
+    setAllowDownload(true);
+    setAllowUpload(false);
+    setAllowCreateFolders(false);
     setLinks([]);
     setLoading(false);
     setCreating(false);
@@ -140,7 +148,9 @@ export default function SharePublicLinkModal({
     try {
       const body = {
         nodeId,
-        allowDownload: true,
+        allowDownload,
+        allowUpload,
+        allowCreateFolders,
         expiresAt: getExpiresAtValue(),
       };
 
@@ -244,6 +254,57 @@ export default function SharePublicLinkModal({
                 </div>
               </label>
 
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={allowDownload}
+                  onChange={(e) => setAllowDownload(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+                />
+                <div>
+                  <p className="text-sm font-medium text-zinc-800">
+                    Permitir download
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Quem acessar poderá baixar arquivos e a pasta em ZIP.
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={allowUpload}
+                  onChange={(e) => setAllowUpload(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+                />
+                <div>
+                  <p className="text-sm font-medium text-zinc-800">
+                    Permitir envio de arquivos
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Quem acessar poderá adicionar novos arquivos na pasta compartilhada.
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={allowCreateFolders}
+                  onChange={(e) => setAllowCreateFolders(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+                />
+                <div>
+                  <p className="text-sm font-medium text-zinc-800">
+                    Permitir criar pastas
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Quem acessar poderá organizar o conteúdo em novas subpastas.
+                  </p>
+                </div>
+              </label>
+
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -316,6 +377,21 @@ export default function SharePublicLinkModal({
                             >
                               {status.label}
                             </span>
+                            {item.allowDownload && (
+                              <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                                Download
+                              </span>
+                            )}
+                            {item.allowUpload && (
+                              <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                                Upload
+                              </span>
+                            )}
+                            {item.allowCreateFolders && (
+                              <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                                Criar pastas
+                              </span>
+                            )}
                           </div>
 
                           <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2">

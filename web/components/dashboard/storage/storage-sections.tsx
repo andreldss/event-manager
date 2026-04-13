@@ -9,39 +9,43 @@ type Props = {
   folders: StorageNode[];
   files: StorageNode[];
   imageFiles: StorageNode[];
-  openNodeMenuId: number | null;
-  selectedIds: number[];
-  filesGridRef: RefObject<HTMLDivElement | null>;
+  openNodeMenuId?: number | null;
+  selectedIds?: number[];
+  filesGridRef?: RefObject<HTMLDivElement | null>;
   selectionBox: {
     x: number;
     y: number;
     width: number;
     height: number;
   } | null;
-  sentinelRef: RefObject<HTMLDivElement | null>;
-  isFetchingMore: boolean;
-  onFolderMenuToggle: (folderId: number) => void;
-  onFileMenuToggle: (fileId: number) => void;
-  onRename: (node: StorageNode) => void;
-  onDelete: (node: StorageNode) => void;
+  sentinelRef?: RefObject<HTMLDivElement | null>;
+  isFetchingMore?: boolean;
+  showActions?: boolean;
+  resolveThumbnailUrl?: (file: StorageNode) => string | null;
+  onFolderMenuToggle?: (folderId: number) => void;
+  onFileMenuToggle?: (fileId: number) => void;
+  onRename?: (node: StorageNode) => void;
+  onDelete?: (node: StorageNode) => void;
   onOpenFolder: (folderId: number) => void;
-  onShare: (node: StorageNode) => void;
-  onToggleSelect: (id: number) => void;
+  onShare?: (node: StorageNode) => void;
+  onToggleSelect?: (id: number) => void;
   onDownload: (node: StorageNode) => void;
   onPreview: (index: number) => void;
-  onFilesMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onFilesMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void;
 };
 
 export default function StorageSections({
   folders,
   files,
   imageFiles,
-  openNodeMenuId,
-  selectedIds,
+  openNodeMenuId = null,
+  selectedIds = [],
   filesGridRef,
   selectionBox,
   sentinelRef,
-  isFetchingMore,
+  isFetchingMore = false,
+  showActions = true,
+  resolveThumbnailUrl,
   onFolderMenuToggle,
   onFileMenuToggle,
   onRename,
@@ -69,11 +73,12 @@ export default function StorageSections({
                 <StorageFolderItem
                   folder={folder}
                   menuOpen={openNodeMenuId === folder.id}
-                  onMenuToggle={() => onFolderMenuToggle(folder.id)}
-                  onRename={() => onRename(folder)}
-                  onDelete={() => onDelete(folder)}
+                  showActions={showActions}
+                  onMenuToggle={() => onFolderMenuToggle?.(folder.id)}
+                  onRename={() => onRename?.(folder)}
+                  onDelete={() => onDelete?.(folder)}
                   onOpen={() => onOpenFolder(folder.id)}
-                  onShare={() => onShare(folder)}
+                  onShare={() => onShare?.(folder)}
                 />
               </div>
             ))}
@@ -110,10 +115,12 @@ export default function StorageSections({
                     node={file}
                     selected={selectedIds.includes(file.id)}
                     menuOpen={openNodeMenuId === file.id}
-                    onToggleSelect={() => onToggleSelect(file.id)}
-                    onMenuToggle={() => onFileMenuToggle(file.id)}
-                    onRename={() => onRename(file)}
-                    onDelete={() => onDelete(file)}
+                    thumbnailUrl={resolveThumbnailUrl?.(file)}
+                    showActions={showActions}
+                    onToggleSelect={() => onToggleSelect?.(file.id)}
+                    onMenuToggle={() => onFileMenuToggle?.(file.id)}
+                    onRename={() => onRename?.(file)}
+                    onDelete={() => onDelete?.(file)}
                     onDownload={() => onDownload(file)}
                     onPreview={() => {
                       if (imageIndex >= 0) onPreview(imageIndex);
@@ -138,9 +145,9 @@ export default function StorageSections({
         </section>
       )}
 
-      <div ref={sentinelRef} className="h-1 w-full" />
+      {sentinelRef && <div ref={sentinelRef} className="h-1 w-full" />}
 
-      {isFetchingMore && (
+      {sentinelRef && isFetchingMore && (
         <div className="flex justify-center py-4">
           <span className="text-sm text-gray-400">Carregando mais...</span>
         </div>

@@ -1,13 +1,14 @@
 "use client";
 
 import { Funnel, Plus, RotateCcw, Search } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useRef } from "react";
 import FinancialSummaryCards from "./financial-summary";
 import FinancialTransactionsList from "./financial-list";
 import FinancialFilterChips from "./financial-filter-chips";
 import type {
   FinancialFilterValues,
   FinancialOption,
+  FinancialSummary,
   Transaction,
 } from "@/types/financial";
 
@@ -15,11 +16,15 @@ type Props = {
   title: string;
   subtitle: string;
   transactions: Transaction[];
+  summary: FinancialSummary;
   isLoading: boolean;
+  isFetchingMore?: boolean;
+  hasMore?: boolean;
   error: string;
   filters: FinancialFilterValues;
   onFiltersChange: (value: FinancialFilterValues) => void;
   onReload: () => void;
+  onLoadMore?: () => void;
   onAdd: () => void;
   onMarkAsPaid?: (transactionId: number) => void;
   settlingId: number | null;
@@ -29,17 +34,25 @@ type Props = {
   availableCategories?: FinancialOption[];
   compactFilters?: boolean;
   onOpenFiltersModal?: () => void;
+  totalCount?: number;
+  canManageTransactions?: boolean;
+  onEditTransaction?: (transaction: Transaction) => void;
+  onDeleteTransaction?: (transaction: Transaction) => void;
 };
 
 export default function FinancialPanel({
   title,
   subtitle,
   transactions,
+  summary,
   isLoading,
+  isFetchingMore = false,
+  hasMore = false,
   error,
   filters,
   onFiltersChange,
   onReload,
+  onLoadMore,
   onAdd,
   onMarkAsPaid,
   settlingId,
@@ -49,7 +62,13 @@ export default function FinancialPanel({
   availableCategories = [],
   compactFilters = false,
   onOpenFiltersModal,
+  totalCount,
+  canManageTransactions = false,
+  onEditTransaction,
+  onDeleteTransaction,
 }: Props) {
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
   function updateFilter<K extends keyof FinancialFilterValues>(
     key: K,
     value: FinancialFilterValues[K],
@@ -93,67 +112,25 @@ export default function FinancialPanel({
     return d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
   }
 
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((t) => {
-      const description = (t.description || "").toLowerCase();
-      const categoryName = (t.category?.name || "").toLowerCase();
-      const eventName = (t.event?.name || "").toLowerCase();
-
-      const matchesSearch = filters.search
-        ? description.includes(filters.search.toLowerCase()) ||
-          categoryName.includes(filters.search.toLowerCase()) ||
-          eventName.includes(filters.search.toLowerCase())
-        : true;
-
-      const matchesType = filters.type ? t.type === filters.type : true;
-      const matchesStatus = filters.status ? t.status === filters.status : true;
-      const matchesEvent = filters.eventId
-        ? String(t.eventId) === filters.eventId
-        : true;
-      const matchesCategory = filters.categoryId
-        ? String(t.category?.id || "") === filters.categoryId
-        : true;
-
-      const compareDate = t.paidAt || t.createdAt || "";
-      const matchesStartDate = filters.startDate
-        ? compareDate >= filters.startDate
-        : true;
-      const matchesEndDate = filters.endDate
-        ? compareDate <= `${filters.endDate}T23:59:59.999Z`
-        : true;
-
-      return (
-        matchesSearch &&
-        matchesType &&
-        matchesStatus &&
-        matchesEvent &&
-        matchesCategory &&
-        matchesStartDate &&
-        matchesEndDate
-      );
-    });
-  }, [transactions, filters]);
-
-  const totals = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-    let plannedExpense = 0;
-
-    for (const t of filteredTransactions) {
-      const amount = parseAmount(t.amount);
-
-      if (t.type === "income") {
-        income += amount;
-      } else {
-        if (t.status === "planned") plannedExpense += amount;
-        else expense += amount;
-      }
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || !onLoadMore || !hasMore || isLoading || isFetchingMore) {
+      return;
     }
 
-    return { income, expense, plannedExpense };
-  }, [filteredTransactions]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: "220px" },
+    );
 
-  const balance = totals.income - totals.expense;
+    observer.observe(sentinel);
+
+    return () => observer.disconnect();
+  }, [hasMore, isLoading, isFetchingMore, onLoadMore, transactions.length]);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
@@ -268,10 +245,10 @@ export default function FinancialPanel({
         )}
 
         <FinancialSummaryCards
-          income={totals.income}
-          expense={totals.expense}
-          plannedExpense={totals.plannedExpense}
-          balance={balance}
+          income={summary.income}
+          expense={summary.expense}
+          plannedExpense={summary.plannedExpense}
+          balance={summary.balance}
           formatBRL={formatBRL}
         />
       </div>
@@ -283,14 +260,21 @@ export default function FinancialPanel({
       )}
 
       <FinancialTransactionsList
-        transactions={filteredTransactions}
+        transactions={transactions}
         isLoading={isLoading}
+        isFetchingMore={isFetchingMore}
+        hasMore={hasMore}
+        loadMoreRef={loadMoreRef}
         settlingId={settlingId}
         onMarkAsPaid={onMarkAsPaid}
         showEventName={showEventName}
         formatBRL={formatBRL}
         formatDate={formatDate}
         parseAmount={parseAmount}
+        totalCount={totalCount}
+        canManageTransactions={canManageTransactions}
+        onEditTransaction={onEditTransaction}
+        onDeleteTransaction={onDeleteTransaction}
       />
     </div>
   );

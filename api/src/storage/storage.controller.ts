@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -20,20 +21,44 @@ import { StorageService, SortField, SortOrder } from './storage.service.js';
 import type { CreateFolderDto } from './dto/folder/create-folder.dto.js';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { hasAccess } from '../common/auth/has-access.js';
+import type { AuthUser } from '../common/types/auth-user.js';
+import { AuditService } from '../audit/audit.service.js';
 
 @UseGuards(JwtAuthGuard)
 @Controller('storage')
 export class StorageController {
-  constructor(private readonly storageService: StorageService) {}
+  constructor(
+    private readonly storageService: StorageService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Post('folder')
-  createFolder(@Body() body: CreateFolderDto, @Req() req: any) {
+  async createFolder(@Body() body: CreateFolderDto, @Req() req: any) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'manage')) {
+      throw new ForbiddenException('Você não tem permissão para alterar anexos.');
+    }
+
     const userId = req.user?.id ?? null;
-    return this.storageService.createFolder(body, userId);
+    const created = await this.storageService.createFolder(body, userId);
+    await this.auditService.log({
+      module: 'storage',
+      action: 'folder_create',
+      entityType: 'storage_node',
+      entityId: created.id,
+      eventId: created.eventId ?? body.eventId ?? null,
+      afterData: created,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return created;
   }
 
   @Get('folders')
-  listAllFolders(@Query('eventId') eventId?: string) {
+  listAllFolders(@Req() req: { user: AuthUser }, @Query('eventId') eventId?: string) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
+      throw new ForbiddenException('Você não tem acesso aos anexos.');
+    }
+
     const eventIdNum =
       eventId !== undefined && eventId !== '' ? Number(eventId) : undefined;
 
@@ -46,9 +71,14 @@ export class StorageController {
 
   @Get('breadcrumb')
   getBreadcrumb(
+    @Req() req: { user: AuthUser },
     @Query('folderId') folderId?: string,
     @Query('eventId') eventId?: string,
   ) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
+      throw new ForbiddenException('Você não tem acesso aos anexos.');
+    }
+
     const folderIdNum =
       folderId !== undefined && folderId !== '' ? Number(folderId) : undefined;
 
@@ -68,12 +98,17 @@ export class StorageController {
 
   @Get('items')
   listItems(
+    @Req() req: { user: AuthUser },
     @Query('eventId') eventId?: string,
     @Query('parentId') parentId?: string,
     @Query('cursor') cursor?: string,
     @Query('sortField') sortField?: string,
     @Query('sortOrder') sortOrder?: string,
   ) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
+      throw new ForbiddenException('Você não tem acesso aos anexos.');
+    }
+
     const eventIdNum =
       eventId !== undefined && eventId !== '' ? Number(eventId) : undefined;
 
@@ -121,8 +156,12 @@ export class StorageController {
     @UploadedFiles() files: Express.Multer.File[],
     @Body('eventId') eventId?: string,
     @Body('parentId') parentId?: string,
-    @Req() req?: any,
+    @Req() req?: { user: AuthUser },
   ) {
+    if (!req?.user || !hasAccess(req.user, 'attachmentsAccess', 'manage')) {
+      throw new ForbiddenException('Você não tem permissão para alterar anexos.');
+    }
+
     const eventIdNum =
       eventId !== undefined && eventId !== '' ? Number(eventId) : undefined;
 
@@ -143,24 +182,51 @@ export class StorageController {
 
     const userId = req?.user?.id ?? null;
 
-    return Promise.all(
+    const uploaded = await Promise.all(
       files.map((file) =>
         this.storageService.uploadFile(eventIdNum, parentIdNum, file, userId),
       ),
     );
+    await this.auditService.log({
+      module: 'storage',
+      action: 'file_upload',
+      entityType: 'storage_node',
+      eventId: uploaded[0]?.eventId ?? eventIdNum ?? null,
+      metadata: {
+        count: uploaded.length,
+        parentId: parentIdNum,
+        ids: uploaded.map((item) => item.id),
+      },
+      afterData: uploaded,
+      ...this.auditService.getContextFromRequest(req as any),
+    });
+    return uploaded;
   }
 
   @Get('nodes/:id/thumbnail')
   async serveThumbnail(
+    @Req() req: { user: AuthUser },
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response,
   ) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
+      throw new ForbiddenException('Você não tem acesso aos anexos.');
+    }
+
     const thumbPath = await this.storageService.getThumbnailPath(id);
     return res.sendFile(thumbPath);
   }
 
   @Get('nodes/:id/raw')
-  async serveRaw(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
+  async serveRaw(
+    @Req() req: { user: AuthUser },
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
+      throw new ForbiddenException('Você não tem acesso aos anexos.');
+    }
+
     const { absPath, mimeType } = await this.storageService.getFilePath(id);
 
     if (mimeType) {
@@ -173,15 +239,37 @@ export class StorageController {
 
   @Get('nodes/:id/download')
   async downloadFile(
+    @Req() req: { user: AuthUser },
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response,
   ) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
+      throw new ForbiddenException('Você não tem acesso aos anexos.');
+    }
+
     const { absPath, name } = await this.storageService.getFilePath(id);
     return res.download(absPath, name);
   }
 
+  @Post('download-zip')
+  async downloadSelectedZip(
+    @Req() req: { user: AuthUser },
+    @Body('nodeIds') nodeIds: number[],
+    @Res() res: Response,
+  ) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
+      throw new ForbiddenException('VocÃª nÃ£o tem acesso aos anexos.');
+    }
+
+    return this.storageService.downloadSelectedFilesZip(nodeIds, res);
+  }
+
   @Get('global-root')
-  getGlobalRoot(@Query('clientId') clientId?: string) {
+  getGlobalRoot(@Req() req: { user: AuthUser }, @Query('clientId') clientId?: string) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'view')) {
+      throw new ForbiddenException('Você não tem acesso aos anexos.');
+    }
+
     const clientIdNum =
       clientId !== undefined && clientId !== '' ? Number(clientId) : undefined;
 
@@ -193,29 +281,72 @@ export class StorageController {
   }
 
   @Patch('nodes/:id/rename')
-  renameNode(
+  async renameNode(
     @Param('id', ParseIntPipe) id: number,
     @Body('name') name: string,
-    @Req() req: any,
+    @Req() req: { user: AuthUser },
   ) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'manage')) {
+      throw new ForbiddenException('Você não tem permissão para alterar anexos.');
+    }
+
     if (!name) {
       throw new BadRequestException('Nome é obrigatório.');
     }
 
-    return this.storageService.renameNode(id, name, req.user?.id ?? null);
+    const renamed = await this.storageService.renameNode(id, name, req.user?.id ?? null);
+    await this.auditService.log({
+      module: 'storage',
+      action: 'rename',
+      entityType: 'storage_node',
+      entityId: id,
+      afterData: renamed,
+      metadata: { name },
+      ...this.auditService.getContextFromRequest(req as any),
+    });
+    return renamed;
   }
 
   @Patch('nodes/:id/move')
-  moveNode(
+  async moveNode(
+    @Req() req: { user: AuthUser },
     @Param('id', ParseIntPipe) id: number,
     @Body('targetParentId') targetParentId: number | null,
     @Body('eventId') eventId?: number,
   ) {
-    return this.storageService.moveNode(id, targetParentId ?? null, eventId);
+    if (!hasAccess(req.user, 'attachmentsAccess', 'manage')) {
+      throw new ForbiddenException('Você não tem permissão para alterar anexos.');
+    }
+
+    const moved = await this.storageService.moveNode(id, targetParentId ?? null, eventId);
+    await this.auditService.log({
+      module: 'storage',
+      action: 'move',
+      entityType: 'storage_node',
+      entityId: id,
+      eventId: eventId ?? null,
+      afterData: moved,
+      metadata: { targetParentId },
+      ...this.auditService.getContextFromRequest(req as any),
+    });
+    return moved;
   }
 
   @Delete('nodes/:id')
-  deleteNode(@Param('id', ParseIntPipe) id: number) {
-    return this.storageService.deleteNode(id);
+  async deleteNode(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    if (!hasAccess(req.user, 'attachmentsAccess', 'manage')) {
+      throw new ForbiddenException('Você não tem permissão para alterar anexos.');
+    }
+
+    const deleted = await this.storageService.deleteNode(id);
+    await this.auditService.log({
+      module: 'storage',
+      action: 'delete',
+      entityType: 'storage_node',
+      entityId: id,
+      afterData: deleted,
+      ...this.auditService.getContextFromRequest(req),
+    });
+    return deleted;
   }
 }

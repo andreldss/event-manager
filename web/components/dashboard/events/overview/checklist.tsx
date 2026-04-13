@@ -150,10 +150,6 @@ export default function OverviewChecklist({ eventId }: { eventId: number }) {
           {items.length === 0 && !loading && (
             <div className="px-4 py-5">
               <p className="text-sm text-slate-500">Nenhum item ainda.</p>
-              <p className="mt-1 text-xs text-slate-400">
-                Adicione tarefas, prazos e pendências para acompanhar melhor o
-                evento.
-              </p>
             </div>
           )}
 
@@ -170,9 +166,8 @@ export default function OverviewChecklist({ eventId }: { eventId: number }) {
               />
 
               <span
-                className={`min-w-0 flex-1 break-words text-sm ${
-                  item.done ? "text-slate-400 line-through" : "text-slate-700"
-                }`}
+                className={`min-w-0 flex-1 break-words text-sm ${item.done ? "text-slate-400 line-through" : "text-slate-700"
+                  }`}
               >
                 {item.text}
               </span>

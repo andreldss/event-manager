@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import CreateFolderModal from "./create-folder-modal";
 import RenameNodeModal from "./rename-files-modal";
 import SharePublicLinkModal from "./share-public-link-modal";
+import MoveSelectedNodesModal from "./move-selected-nodes-modal";
 
 import StorageToolbar from "./storage-toolbar";
 import StorageBreadcrumb from "./storage-breadcrumb";
@@ -58,6 +59,7 @@ export default function StorageManager({
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareNodeId, setShareNodeId] = useState<number | null>(null);
   const [shareFolderName, setShareFolderName] = useState("");
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
 
   const [selectionBox, setSelectionBox] = useState<{
     x: number;
@@ -76,6 +78,7 @@ export default function StorageManager({
   const filesGridRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const uploadDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipClearSelectionOnClickRef = useRef(false);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -273,6 +276,12 @@ export default function StorageManager({
 
       const clickedNodeMenu = target.closest("[data-node-menu]");
       const clickedNodeButton = target.closest("[data-node-menu-button]");
+      const clickedFileCard = target.closest("[data-file-card='true']");
+      const clickedToolbar =
+        target.closest("input") ||
+        target.closest("select") ||
+        target.closest("button") ||
+        target.closest("label");
 
       if (!clickedCreateMenu) {
         setOpenCreateMenu(false);
@@ -280,6 +289,21 @@ export default function StorageManager({
 
       if (!clickedNodeMenu && !clickedNodeButton) {
         setOpenNodeMenuId(null);
+      }
+
+      if (
+        selectedIds.length > 0 &&
+        !skipClearSelectionOnClickRef.current &&
+        !clickedFileCard &&
+        !clickedNodeMenu &&
+        !clickedNodeButton &&
+        !clickedToolbar
+      ) {
+        setSelectedIds([]);
+      }
+
+      if (skipClearSelectionOnClickRef.current) {
+        skipClearSelectionOnClickRef.current = false;
       }
     }
 
@@ -301,7 +325,7 @@ export default function StorageManager({
       document.removeEventListener("click", handleDocumentClick);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, []);
+  }, [selectedIds.length]);
 
   useEffect(() => {
     if (!isDraggingSelection) return;
@@ -359,6 +383,7 @@ export default function StorageManager({
       }
 
       if (selectedFromDrag.length > 0) {
+        skipClearSelectionOnClickRef.current = true;
         setSelectedIds((prev) =>
           Array.from(new Set([...prev, ...selectedFromDrag])),
         );
@@ -419,6 +444,51 @@ export default function StorageManager({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao excluir itens.");
     }
+  }
+
+  function handleDownloadSelected() {
+    if (selectedIds.length === 0) return;
+
+    void (async () => {
+      try {
+        const response = await fetch(`${API_BASE}/storage/download-zip`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ nodeIds: selectedIds }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          throw new Error(data?.message || "Falha ao baixar arquivos.");
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "arquivos-selecionados.zip";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Falha ao baixar arquivos.");
+      }
+    })();
+  }
+
+  function handleMoveSelected() {
+    if (selectedIds.length === 0) return;
+    setMoveModalOpen(true);
+  }
+
+  async function handleMovedSelected() {
+    setMoveModalOpen(false);
+    setSelectedIds([]);
+    await loadInitial();
   }
 
   function handleDownloadNode(node: StorageNode) {
@@ -562,6 +632,8 @@ export default function StorageManager({
           selectedCount={selectedIds.length}
           onClearSelection={clearSelection}
           onDeleteSelected={handleDeleteSelected}
+          onDownloadSelected={handleDownloadSelected}
+          onMoveSelected={handleMoveSelected}
           openCreateMenu={openCreateMenu}
           onToggleCreateMenu={() => setOpenCreateMenu((prev) => !prev)}
           onCreateFolder={() => {
@@ -676,6 +748,15 @@ export default function StorageManager({
           onClose={closeShareModal}
           nodeId={shareNodeId}
           folderName={shareFolderName}
+        />
+
+        <MoveSelectedNodesModal
+          open={moveModalOpen}
+          onClose={() => setMoveModalOpen(false)}
+          onMoved={handleMovedSelected}
+          eventId={eventId}
+          currentFolderId={currentFolderId}
+          selectedIds={selectedIds}
         />
       </div>
 

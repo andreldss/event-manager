@@ -50,7 +50,7 @@ export default function CreateGlobalTransactionModal({
   async function loadInitialData() {
     try {
       const [categoriesResponse, eventsResponse] = await Promise.all([
-        apiFetch("/financial-categories", "GET"),
+        apiFetch("/financial-category", "GET"),
         apiFetch("/events", "GET"),
       ]);
 

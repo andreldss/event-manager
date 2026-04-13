@@ -6,6 +6,10 @@ import { CreateEventDto } from './dto/event.dto.js';
 export class EventsService {
   constructor(private prisma: PrismaService) {}
 
+  private getCollectionPaidAt(referenceMonth: string) {
+    return new Date(`${referenceMonth}-01T12:00:00.000Z`);
+  }
+
   async create(dto: CreateEventDto) {
     const name = dto.name?.trim();
 
@@ -64,11 +68,102 @@ export class EventsService {
       include: {
         client: {
           select: {
+            id: true,
             name: true,
           },
         },
       },
     });
+  }
+
+  async update(id: number, dto: CreateEventDto) {
+    const idNumber = Number(id);
+
+    if (Number.isNaN(idNumber)) {
+      throw new BadRequestException('ID inválido.');
+    }
+
+    const name = dto.name?.trim();
+
+    if (!name || !dto.type || !dto.date || !dto.location || !dto.clientId) {
+      throw new BadRequestException('Campos devem ser preenchidos.');
+    }
+
+    if (dto.type !== 'simple' && dto.type !== 'collective') {
+      throw new BadRequestException('Tipo de evento inválido.');
+    }
+
+    const existingEvent = await this.prisma.event.findUnique({
+      where: { id: idNumber },
+      select: { id: true },
+    });
+
+    if (!existingEvent) {
+      throw new BadRequestException('Evento não encontrado.');
+    }
+
+    const numberClientId = Number(dto.clientId);
+
+    const client = await this.prisma.client.findUnique({
+      where: { id: numberClientId },
+      select: { id: true },
+    });
+
+    if (!client) {
+      throw new BadRequestException('Cliente não encontrado');
+    }
+
+    const eventDate = new Date(dto.date + 'T00:00:00');
+
+    return this.prisma.event.update({
+      where: { id: idNumber },
+      data: {
+        name,
+        type: dto.type,
+        date: eventDate,
+        location: dto.location,
+        notes: dto.notes,
+        clientId: numberClientId,
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  async remove(id: number) {
+    const idNumber = Number(id);
+
+    if (Number.isNaN(idNumber)) {
+      throw new BadRequestException('ID inválido.');
+    }
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: idNumber },
+      include: {
+        client: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      throw new BadRequestException('Evento não encontrado.');
+    }
+
+    await this.prisma.event.delete({
+      where: { id: idNumber },
+    });
+
+    return event;
   }
 
   async addParticipant(eventId: number, name: string, groupId: number | null) {
@@ -96,6 +191,36 @@ export class EventsService {
         eventId: eventIdNumber,
         name: nameTrim,
         groupId,
+      },
+    });
+  }
+
+  async deleteParticipant(eventId: number, participantId: number) {
+    const eventIdNumber = Number(eventId);
+    const participantIdNumber = Number(participantId);
+
+    if (Number.isNaN(eventIdNumber)) {
+      throw new BadRequestException('ID do evento inválido.');
+    }
+
+    if (Number.isNaN(participantIdNumber)) {
+      throw new BadRequestException('ID do participante inválido.');
+    }
+
+    const participant = await this.prisma.participant.findFirst({
+      where: {
+        id: participantIdNumber,
+        eventId: eventIdNumber,
+      },
+    });
+
+    if (!participant) {
+      throw new BadRequestException('Participante não encontrado neste evento.');
+    }
+
+    return this.prisma.participant.delete({
+      where: {
+        id: participantIdNumber,
       },
     });
   }
@@ -132,6 +257,8 @@ export class EventsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      const paidAt = this.getCollectionPaidAt(referenceMonth);
+
       if (amount === 0) {
         const existing = await tx.collection.findUnique({
           where: {
@@ -191,13 +318,14 @@ export class EventsService {
           status: 'settled',
           amount,
           description: `Coleta - ${participant.name} (${referenceMonth})`,
-          paidAt: new Date(),
+          paidAt,
           sourceType: 'collection',
           sourceId: collection.id,
         },
         update: {
           amount,
           description: `Coleta - ${participant.name} (${referenceMonth})`,
+          paidAt,
         },
       });
 

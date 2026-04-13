@@ -12,6 +12,8 @@ type Props = {
   selectedCount: number;
   onClearSelection: () => void;
   onDeleteSelected: () => void;
+  onDownloadSelected: () => void;
+  onMoveSelected: () => void;
   openCreateMenu: boolean;
   onToggleCreateMenu: () => void;
   onCreateFolder: () => void;
@@ -27,6 +29,8 @@ export default function StorageToolbar({
   selectedCount,
   onClearSelection,
   onDeleteSelected,
+  onDownloadSelected,
+  onMoveSelected,
   openCreateMenu,
   onToggleCreateMenu,
   onCreateFolder,
@@ -64,6 +68,8 @@ export default function StorageToolbar({
             count={selectedCount}
             onClear={onClearSelection}
             onDelete={onDeleteSelected}
+            onDownload={onDownloadSelected}
+            onMove={onMoveSelected}
           />
         </div>
       )}
