@@ -62,7 +62,7 @@ export default function NewClient() {
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   required
-                  placeholder="Ex: Colégio Dehon"
+                  placeholder="Ex: Colégio ..."
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-200"
                 />
               </div>

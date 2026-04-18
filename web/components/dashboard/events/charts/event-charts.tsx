@@ -135,8 +135,8 @@ export function EventChart({
       ) : null}
 
       {!isLoading && !error && data.length > 0 ? (
-        <div className="mt-6 min-h-[320px] w-full min-w-0">
-          <ResponsiveContainer width="100%" height={400}>
+        <div className="mt-6 min-h-[280px] w-full min-w-0">
+          <ResponsiveContainer width="100%" height={250}>
             <AreaChart
               data={data}
               margin={{ top: 10, right: 16, left: 0, bottom: 0 }}

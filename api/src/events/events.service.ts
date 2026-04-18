@@ -195,6 +195,45 @@ export class EventsService {
     });
   }
 
+  async updateParticipantExpectedAmount(
+    eventId: number,
+    participantId: number,
+    expectedAmount: number | null,
+  ) {
+    const eventIdNumber = Number(eventId);
+    const participantIdNumber = Number(participantId);
+
+    if (Number.isNaN(eventIdNumber)) {
+      throw new BadRequestException('ID do evento inválido.');
+    }
+
+    if (Number.isNaN(participantIdNumber)) {
+      throw new BadRequestException('ID do participante inválido.');
+    }
+
+    if (
+      expectedAmount !== null &&
+      (typeof expectedAmount !== 'number' ||
+        Number.isNaN(expectedAmount) ||
+        expectedAmount < 0)
+    ) {
+      throw new BadRequestException('expectedAmount inválido.');
+    }
+
+    const participant = await this.prisma.participant.findFirst({
+      where: { id: participantIdNumber, eventId: eventIdNumber },
+    });
+
+    if (!participant) {
+      throw new BadRequestException('Participante não encontrado neste evento.');
+    }
+
+    return this.prisma.participant.update({
+      where: { id: participantIdNumber },
+      data: { expectedAmount },
+    });
+  }
+
   async deleteParticipant(eventId: number, participantId: number) {
     const eventIdNumber = Number(eventId);
     const participantIdNumber = Number(participantId);
@@ -218,10 +257,24 @@ export class EventsService {
       throw new BadRequestException('Participante não encontrado neste evento.');
     }
 
-    return this.prisma.participant.delete({
-      where: {
-        id: participantIdNumber,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const collections = await tx.collection.findMany({
+        where: { participantId: participantIdNumber },
+        select: { id: true },
+      });
+
+      if (collections.length > 0) {
+        await tx.financialTransaction.deleteMany({
+          where: {
+            sourceType: 'collection',
+            sourceId: { in: collections.map((c) => c.id) },
+          },
+        });
+      }
+
+      return tx.participant.delete({
+        where: { id: participantIdNumber },
+      });
     });
   }
 

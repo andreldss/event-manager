@@ -24,6 +24,8 @@ model User {
   storageNodes StorageNode[]
   permissions     UserPermission?
   auditLogs       AuditLog[]
+
+  @@map("user")
 }
 
 model Client {
@@ -35,6 +37,8 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   events Event[]
+
+  @@map("client")
 }
 
 model Event {
@@ -55,14 +59,17 @@ model Event {
   checklist EventChecklist[]
   group EventGroup[]
   storageNodes StorageNode[]
+
+  @@map("event")
 }
 
 model Participant {
-  id        Int      @id @default(autoincrement())
-  eventId   Int
-  name      String
-  groupId   Int?  
-  createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  eventId        Int
+  name           String
+  groupId        Int?
+  expectedAmount Decimal? @db.Decimal(10, 2)
+  createdAt      DateTime @default(now())
 
   event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   group       EventGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
@@ -86,7 +93,7 @@ model Collection {
   @@unique([participantId, referenceMonth])
   @@index([referenceMonth])
   @@index([participantId])
-  
+  @@map("collection")
 }
 
 model FinancialCategory {
@@ -230,6 +237,7 @@ model StorageNode {
   @@index([eventId, type])
 
   @@unique([eventId, parentId, name])
+  @@map("storage_node")
 }
 
 model UserPermission {

@@ -65,7 +65,7 @@ export default function FinancialChartCard({
   chartData,
 }: FinancialChartCardProps) {
   return (
-    <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5">
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4">
       <div className="mb-4">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
           Financeiro
@@ -90,8 +90,8 @@ export default function FinancialChartCard({
             </span>
           </div>
 
-          <div className="h-[280px] min-h-[280px] w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[230px] min-h-[230px] w-full min-w-0 overflow-hidden">
+            <ResponsiveContainer width={600} height="90%">
               <AreaChart
                 data={chartData}
                 margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
@@ -122,6 +122,7 @@ export default function FinancialChartCard({
                 />
 
                 <YAxis
+                  width={56}
                   tickFormatter={(value) =>
                     new Intl.NumberFormat("pt-BR", {
                       notation: "compact",

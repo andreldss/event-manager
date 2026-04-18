@@ -348,9 +348,6 @@ export default function LogsPage() {
             <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
               Detalhes
             </p>
-            <p className="mt-1 text-sm text-slate-500">
-              {selectedId ? `Log #${selectedId}` : "Selecione um registro"}
-            </p>
           </div>
 
           <div className="flex-1 overflow-auto px-4 py-4">
@@ -410,19 +407,7 @@ export default function LogsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-                    Contexto
-                  </p>
-                  <div className="mt-2 space-y-1 text-sm text-slate-600">
-                    <p>Entity: {selectedItem.entityType ?? "—"}{selectedItem.entityId ? ` #${selectedItem.entityId}` : ""}</p>
-                    <p>EventId: {selectedItem.eventId ?? "—"}</p>
-                    <p>IP: {selectedItem.ip ?? "—"}</p>
-                    <p>User-Agent: {selectedItem.userAgent ?? "—"}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
+                                <div className="space-y-3">
                   <div className="rounded-xl border border-slate-200 bg-slate-950 p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
                       Antes
@@ -448,6 +433,18 @@ export default function LogsPage() {
                     <pre className="mt-2 overflow-auto whitespace-pre-wrap break-all text-xs text-slate-100">
                       {prettyJson(selectedItem.metadata)}
                     </pre>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                    Contexto
+                  </p>
+                  <div className="mt-2 space-y-1 text-sm text-slate-600">
+                    <p>Entity: {selectedItem.entityType ?? "—"}{selectedItem.entityId ? ` #${selectedItem.entityId}` : ""}</p>
+                    <p>EventId: {selectedItem.eventId ?? "—"}</p>
+                    <p>IP: {selectedItem.ip ?? "—"}</p>
+                    <p>User-Agent: {selectedItem.userAgent ?? "—"}</p>
                   </div>
                 </div>
               </div>

@@ -13,7 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CreateEventDto } from './dto/event.dto.js';
-import { CreateParticipantDto } from './dto/participant.dto.js';
+import { CreateParticipantDto, UpdateParticipantDto } from './dto/participant.dto.js';
 import { EventsService } from './events.service.js';
 import { UpsertCollectionDto } from './dto/collection.dto.js';
 import { CreatePaymentMonthDto } from './dto/paymentmonth.js';
@@ -162,6 +162,26 @@ export class EventsController {
     }
 
     return this.eventService.getParticipants(eventId);
+  }
+
+  @Patch(':eventId/participants/:participantId')
+  async updateParticipant(
+    @Req() req: any,
+    @Param('eventId', ParseIntPipe) eventId: number,
+    @Param('participantId', ParseIntPipe) participantId: number,
+    @Body() body: UpdateParticipantDto,
+  ) {
+    if (!hasAccess(req.user, 'eventsAccess', 'manage')) {
+      throw new ForbiddenException(
+        'Você não tem permissão para alterar participantes.',
+      );
+    }
+
+    return this.eventService.updateParticipantExpectedAmount(
+      eventId,
+      participantId,
+      body.expectedAmount,
+    );
   }
 
   @Delete(':eventId/participants/:participantId')

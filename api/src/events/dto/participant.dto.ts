@@ -3,3 +3,7 @@ export class CreateParticipantDto {
   name: string;
   groupId?: number;
 }
+
+export class UpdateParticipantDto {
+  expectedAmount: number | null;
+}

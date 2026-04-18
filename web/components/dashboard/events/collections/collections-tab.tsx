@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
-type Participant = { id: number; name: string; groupId?: number | null };
+type Participant = { id: number; name: string; groupId?: number | null; expectedAmount?: number | null };
 type PaymentMonth = string;
 
 type PaymentsMap = Record<string, number>;
@@ -76,6 +76,7 @@ export default function CollectionsTab({
 
   const [payments, setPayments] = useState<PaymentsMap>({});
   const [draft, setDraft] = useState<DraftMap>({});
+  const [expectedDraft, setExpectedDraft] = useState<DraftMap>({});
 
   const [loading, setLoading] = useState(false);
   const [monthsLoaded, setMonthsLoaded] = useState(false);
@@ -141,6 +142,49 @@ export default function CollectionsTab({
     }
 
     return formatBRL(parsed);
+  }
+
+  function getExpectedDraftValue(participantId: number) {
+    if (expectedDraft[participantId] !== undefined) return expectedDraft[participantId];
+    const p = participants.find((x) => x.id === participantId);
+    const v = p?.expectedAmount ?? null;
+    if (v === null || v === 0) return "";
+    return String(v);
+  }
+
+  function getExpectedDisplayValue(participantId: number) {
+    const raw = getExpectedDraftValue(participantId).trim();
+    const parsed = parseMoney(raw);
+    if (!raw || parsed === null || parsed === 0) return "";
+    return formatBRL(parsed);
+  }
+
+  async function commitExpectedAmount(participantId: number) {
+    const text = expectedDraft[participantId] ?? "";
+    const parsed = text.trim() === "" ? null : parseMoney(text);
+
+    setParticipants((prev) =>
+      prev.map((p) =>
+        p.id === participantId ? { ...p, expectedAmount: parsed ?? null } : p,
+      ),
+    );
+
+    setExpectedDraft((prev) => {
+      const next = { ...prev };
+      delete next[participantId];
+      return next;
+    });
+
+    try {
+      await apiFetch(
+        `/events/${eventId}/participants/${participantId}`,
+        "PATCH",
+        { expectedAmount: parsed ?? null },
+      );
+    } catch (err) {
+      if (err instanceof Error) setError(err.message);
+      else setError("Falha ao salvar valor esperado.");
+    }
   }
 
   async function commitCell(participantId: number, monthKey: string) {
@@ -952,6 +996,13 @@ export default function CollectionsTab({
 
   const grandTotal = totalGeneral(monthsToRender);
 
+  const totalExpected = filteredParticipants.reduce(
+    (sum, p) => sum + (Number(p.expectedAmount) || 0),
+    0,
+  );
+
+  const totalToPay = totalExpected - grandTotal;
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-3">
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
@@ -1110,6 +1161,10 @@ export default function CollectionsTab({
                     Aluno
                   </th>
 
+                  <th className="whitespace-nowrap border-r border-slate-200 px-2 py-2 text-center font-semibold text-slate-600">
+                    Valor
+                  </th>
+
                   {visibleMonths.map((m) => (
                     <th
                       key={m.key}
@@ -1120,7 +1175,11 @@ export default function CollectionsTab({
                   ))}
 
                   <th className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-800">
-                    Total
+                    Pago
+                  </th>
+
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-800">
+                    Restante
                   </th>
                 </tr>
               </thead>
@@ -1133,7 +1192,14 @@ export default function CollectionsTab({
                   >
                     <td className="sticky left-0 z-10 border-r border-slate-200 bg-white px-3 py-2 text-slate-700">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate">{p.name}</span>
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate">{p.name}</span>
+                          {p.groupId != null && (
+                            <span className="truncate text-[10px] text-slate-400">
+                              {groups.find((g) => g.id === p.groupId)?.text}
+                            </span>
+                          )}
+                        </div>
                         <button
                           type="button"
                           onClick={() => deleteParticipant(p)}
@@ -1143,6 +1209,23 @@ export default function CollectionsTab({
                           <Trash2 size={14} />
                         </button>
                       </div>
+                    </td>
+
+                    <td className="border-r border-slate-200 px-2 py-1.5">
+                      <input
+                        value={getExpectedDraftValue(p.id)}
+                        onChange={(e) =>
+                          setExpectedDraft((prev) => ({
+                            ...prev,
+                            [p.id]: e.target.value,
+                          }))
+                        }
+                        onBlur={() => commitExpectedAmount(p.id)}
+                        className="w-[80px] rounded-md border border-transparent bg-slate-50 px-2 py-1 text-right text-xs text-slate-700 outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                        inputMode="decimal"
+                        placeholder="—"
+                        disabled={loading}
+                      />
                     </td>
 
                     {visibleMonths.map((m) => (
@@ -1168,35 +1251,30 @@ export default function CollectionsTab({
                     <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-800">
                       {formatBRL(totalByParticipant(p.id, monthsToRender))}
                     </td>
+
+                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-500">
+                      {p.expectedAmount != null
+                        ? formatBRL(
+                            (p.expectedAmount as number) -
+                              totalByParticipant(p.id, monthsToRender),
+                          )
+                        : "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="shrink-0 border-t border-slate-200 bg-slate-50">
-            <table className="min-w-max w-full text-[11px] sm:text-xs">
-              <tbody>
-                <tr>
-                  <td className="sticky left-0 z-10 w-40 border-r border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-800 sm:w-52 md:w-60">
-                    Total por mês
-                  </td>
-
-                  {visibleMonths.map((m) => (
-                    <td
-                      key={m.key}
-                      className="whitespace-nowrap bg-slate-50 px-2 py-2 font-semibold text-slate-700"
-                    >
-                      {formatBRL(totalByMonth(m.key))}
-                    </td>
-                  ))}
-
-                  <td className="whitespace-nowrap bg-slate-50 px-3 py-2 text-right font-bold text-slate-900">
-                    {formatBRL(grandTotal)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-3 flex items-center justify-end gap-6">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Pago</span>
+              <span className="text-sm font-bold text-slate-900">{formatBRL(grandTotal)}</span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">A pagar</span>
+              <span className="text-sm font-bold text-slate-900">{formatBRL(totalToPay)}</span>
+            </div>
           </div>
         </div>
       )}
